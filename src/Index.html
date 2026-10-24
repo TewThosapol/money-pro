@@ -260,6 +260,8 @@ const ICON_CHOICES = ['utensils', 'coffee', 'home', 'zap', 'droplets', 'car', 'f
 const COLOR_CHOICES = ['#F97316', '#EF4444', '#EC4899', '#A855F7', '#4F46E5', '#2563EB', '#0EA5E9', '#14B8A6', '#10B981', '#84CC16', '#EAB308', '#64748B'];
 const RULE = { need: 0.5, want: 0.3, save: 0.2 };
 const PAGE_SIZE = 25;
+// Apps Script ตัดข้อความหลังเครื่องหมายทับสองตัวในสคริปต์ทิ้ง จึงต่อ URL ด้วย join แทน
+const driveUrl = (id) => ['https:', '', 'drive.google.com', 'file', 'd', encodeURIComponent(id), 'view'].join('/');
 
 /* =====================================================================
  * Utils
@@ -760,7 +762,7 @@ const emptyState = (icon, title, sub, action) => `
     ${sub ? `<p class="sub mt-1">${sub}</p>` : ''}
     ${action || ''}
   </div>`;
-const attachLink = (t) => t.attachment ? `<a href="https://drive.google.com/file/d/${esc(t.attachment)}/view" target="_blank" rel="noopener" class="inline-flex text-muted hover:text-accent align-middle ml-1" title="ดูสลิป/ใบเสร็จ" aria-label="ดูสลิปหรือใบเสร็จ"><i data-lucide="paperclip" class="!w-3.5 !h-3.5"></i></a>` : '';
+const attachLink = (t) => t.attachment ? `<a href="${driveUrl(t.attachment)}" target="_blank" rel="noopener" class="inline-flex text-muted hover:text-accent align-middle ml-1" title="ดูสลิป/ใบเสร็จ" aria-label="ดูสลิปหรือใบเสร็จ"><i data-lucide="paperclip" class="!w-3.5 !h-3.5"></i></a>` : '';
 
 function txRow(t) {
   const c = cat(t.category), a = acc(t.account);
@@ -1234,7 +1236,7 @@ function downloadCsv(rows, name) {
 function exportTxCsv() {
   const rows = [['วันที่', 'ประเภท', 'หมวดหมู่', 'บัญชี', 'จำนวนเงิน', 'หมายเหตุ', 'ไฟล์แนบ']];
   filteredTx().slice().reverse().forEach((t) => rows.push([t.date, t.type === 'income' ? 'รายรับ' : 'รายจ่าย', cat(t.category).name, acc(t.account).name,
-    t.type === 'income' ? t.amount : -t.amount, t.note, t.attachment ? `https://drive.google.com/file/d/${t.attachment}/view` : '']));
+    t.type === 'income' ? t.amount : -t.amount, t.note, t.attachment ? driveUrl(t.attachment) : '']));
   const P = period();
   downloadCsv(rows, `moneypro-${P.from}_${P.to}.csv`);
   toast('ดาวน์โหลด CSV แล้ว');
@@ -1446,7 +1448,7 @@ function openTxForm(t) {
           <div class="flex items-center gap-3">
             <img id="rcptThumb" alt="" class="w-12 h-12 object-cover rounded-lg border border-rule ${st.attachment ? 'hidden' : ''}">
             <span id="rcptIcon" class="cat-ico bg-accent/10 text-accent ${st.attachment ? '' : 'hidden'}"><i data-lucide="paperclip"></i></span>
-            <div class="flex-1 min-w-0"><p class="font-medium text-sm" id="rcptTitle">แนบไฟล์แล้ว</p><p class="sub text-xs" id="rcptSub">${st.attachment ? `<a class="text-accent hover:underline" target="_blank" rel="noopener" href="https://drive.google.com/file/d/${esc(st.attachment)}/view">เปิดดูใน Drive</a>` : ''}</p></div>
+            <div class="flex-1 min-w-0"><p class="font-medium text-sm" id="rcptTitle">แนบไฟล์แล้ว</p><p class="sub text-xs" id="rcptSub">${st.attachment ? `<a class="text-accent hover:underline" target="_blank" rel="noopener" href="${driveUrl(st.attachment)}">เปิดดูใน Drive</a>` : ''}</p></div>
             <button type="button" class="icon-btn" id="rcptRemove" aria-label="นำไฟล์แนบออก"><i data-lucide="x"></i></button>
           </div>
           <details id="rcptTextBox" class="hidden mt-2"><summary class="sub text-xs cursor-pointer">ข้อความที่อ่านได้จากรูป</summary><pre id="rcptText" class="mt-1 text-xs whitespace-pre-wrap max-h-40 overflow-auto bg-paper rounded-lg p-2 font-sans"></pre></details>
