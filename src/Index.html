@@ -8,6 +8,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script>
+  // แสดงข้อผิดพลาดของสคริปต์บนหน้าจอ (ช่วยวินิจฉัยเวลาหน้าโหลดไม่ขึ้น)
+  window.__bootErrors = [];
+  window.addEventListener('error', function (e) {
+    var msg = (e.message || 'Script error') + (e.filename ? ' @ ' + e.filename.split('/').pop() + ':' + e.lineno : '');
+    window.__bootErrors.push(msg);
+    var el = document.getElementById('loading');
+    if (el) el.insertAdjacentHTML('beforeend', '<p style="color:#b42318;font-size:12px;margin-top:8px">' + msg.replace(/</g, '&lt;') + '</p>');
+  }, true);
+</script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   tailwind.config = {
@@ -1211,7 +1221,7 @@ function renderTxResults() {
 }
 
 function downloadCsv(rows, name) {
-  const csv = '﻿' + rows.map((r) => r.map((v) => {
+  const csv = '\uFEFF' + rows.map((r) => r.map((v) => {
     const s = String(v == null ? '' : v);
     return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }).join(',')).join('\n');
