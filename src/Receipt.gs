@@ -68,6 +68,7 @@ function ocr_(blob) {
   if (typeof Drive === 'undefined') {
     throw new Error('ยังไม่ได้เปิด Drive API — ไปที่ Editor → Services → + → Drive API → Add');
   }
+  const t0 = Date.now();
   let docId;
   if (Drive.Files.insert) {
     docId = Drive.Files.insert({ title: 'ocr-temp', mimeType: blob.getContentType() }, blob,
@@ -76,11 +77,36 @@ function ocr_(blob) {
     docId = Drive.Files.create({ name: 'ocr-temp', mimeType: 'application/vnd.google-apps.document' }, blob,
       { ocrLanguage: 'th' }).id;
   }
+  const t1 = Date.now();
   try {
-    return DocumentApp.openById(docId).getBody().getText();
+    const text = DocumentApp.openById(docId).getBody().getText();
+    console.log('OCR timing: convert ' + (t1 - t0) + 'ms, read ' + (Date.now() - t1) + 'ms');
+    return text;
   } finally {
+    const t2 = Date.now();
     try { Drive.Files.remove(docId); } catch (e) { trashFile_(docId); }
+    console.log('OCR timing: cleanup ' + (Date.now() - t2) + 'ms');
   }
+}
+
+/** ใช้ทดสอบจาก Editor: อ่านรูปล่าสุดในโฟลเดอร์ Receipts แล้วแสดงข้อความและผลที่แยกได้ */
+function debugLatestReceipt() {
+  const t0 = Date.now();
+  const id = getSettingsMap_().receiptFolderId;
+  if (!id) return 'ยังไม่มีโฟลเดอร์ Receipts';
+  const it = DriveApp.getFolderById(id).getFiles();
+  let latest = null;
+  while (it.hasNext()) {
+    const f = it.next();
+    if (!latest || f.getDateCreated() > latest.getDateCreated()) latest = f;
+  }
+  if (!latest) return 'ไม่มีไฟล์';
+  const t1 = Date.now();
+  const text = ocr_(latest.getBlob());
+  console.log('find file ' + (t1 - t0) + 'ms, total ' + (Date.now() - t0) + 'ms, size ' + latest.getSize());
+  console.log(text);
+  console.log(JSON.stringify(parseReceiptText_(text, DEFAULT_CATEGORIES)));
+  return 'ok';
 }
 
 /* ==============================================================
