@@ -38,6 +38,7 @@ function referenceData_() {
     accounts: tRead_('Accounts'),
     categories: tRead_('Categories'),
     recurring: tRead_('Recurring'),
+    goals: tRead_('Goals'),
     settings: {
       backupEnabled: s.backupEnabled === 'true',
       lastBackup: s.lastBackup || '',
@@ -78,6 +79,7 @@ function getDashboardSummary(range) {
   let income = 0, expense = 0;
   const byCategory = {};
   list.forEach((t) => {
+    if (t.type === 'transfer') return;
     if (t.type === 'income') income += t.amount;
     else {
       expense += t.amount;
@@ -154,7 +156,9 @@ function deleteAccount(id) {
     if (!tRead_('Accounts', true).some((a) => !a.archived && a.id !== id)) {
       throw new Error('ต้องมีบัญชีที่ใช้งานอยู่อย่างน้อย 1 บัญชี');
     }
-    const used = allTransactions_().some((t) => t.account === id) || tRead_('Recurring', true).some((r) => r.account === id);
+    const used = allTransactions_().some((t) => t.account === id || t.toAccount === id) ||
+      tRead_('Recurring', true).some((r) => r.account === id || r.toAccount === id) ||
+      tRead_('Goals', true).some((g) => g.account === id && !g.archived);
     if (used) {
       tUpdate_('Accounts', id, { archived: true });
       return { archived: true };
@@ -213,6 +217,36 @@ function deleteCategory(id) {
 }
 
 /* ==============================================================
+ * Savings goals
+ * ============================================================ */
+
+/**
+ * เป้าหมายการออม ความคืบหน้าคิดจากยอดคงเหลือของบัญชีที่ผูกไว้
+ * account ว่าง = ใช้ยอดรวมของบัญชีออมทรัพย์และการลงทุนทั้งหมด
+ */
+function saveGoal(data) {
+  data = data || {};
+  const name = String(data.name || '').trim().slice(0, 60);
+  if (!name) throw new Error('กรุณาตั้งชื่อเป้าหมาย');
+  const target = round2_(Number(data.targetAmount));
+  if (!(target > 0)) throw new Error('เป้าหมายต้องมากกว่า 0');
+  const account = String(data.account || '');
+  if (account && !tRead_('Accounts').some((a) => a.id === account)) throw new Error('ไม่พบบัญชีที่เลือก');
+  const targetDate = isDate_(data.targetDate) ? data.targetDate : '';
+  const clean = { name: name, targetAmount: target, account: account, targetDate: targetDate,
+    color: hexColor_(data.color, '#0EA5E9'), archived: data.archived === true };
+  return withLock_(() => {
+    if (data.id) return tUpdate_('Goals', data.id, clean);
+    return tInsert_('Goals', Object.assign(clean, { id: newId_('GOAL'), createdAt: new Date().toISOString() }));
+  });
+}
+
+function deleteGoal(id) {
+  withLock_(() => tDelete_('Goals', id));
+  return { ok: true };
+}
+
+/* ==============================================================
  * Recurring
  * ============================================================ */
 
@@ -220,12 +254,12 @@ function saveRecurring(data) {
   data = data || {};
   const tx = validateTx_({
     date: data.startDate, type: data.type, category: data.category,
-    account: data.account, amount: data.amount, note: data.note,
+    account: data.account, toAccount: data.toAccount, amount: data.amount, note: data.note,
   });
   const day = Math.round(Number(data.dayOfMonth));
   if (!(day >= 1 && day <= 31)) throw new Error('วันที่ของเดือนต้องอยู่ระหว่าง 1–31');
   const clean = {
-    type: tx.type, category: tx.category, account: tx.account, amount: tx.amount, note: tx.note,
+    type: tx.type, category: tx.category, account: tx.account, toAccount: tx.toAccount, amount: tx.amount, note: tx.note,
     dayOfMonth: day, active: data.active !== false, startDate: tx.date,
   };
   const saved = withLock_(() => {
@@ -280,9 +314,15 @@ function allTransactions_() {
   accounts.forEach((a) => { accIds[a.id] = true; });
   const fallbackAcc = (accounts.filter((a) => !a.archived)[0] || accounts[0] || { id: '' }).id;
   return tRead_('Transactions').map((t) => {
-    t.type = t.type === 'income' ? 'income' : 'expense';
+    t.type = t.type === 'income' || t.type === 'transfer' ? t.type : 'expense';
     t.date = String(t.date).slice(0, 10);
-    if (!catIds[t.category]) t.category = t.type === 'income' ? 'other_inc' : 'other_exp';
+    if (t.type === 'transfer') {
+      t.category = '';
+      if (!accIds[t.toAccount]) t.toAccount = fallbackAcc;
+    } else {
+      if (!catIds[t.category]) t.category = t.type === 'income' ? 'other_inc' : 'other_exp';
+      t.toAccount = '';
+    }
     if (!accIds[t.account]) t.account = fallbackAcc;
     return t;
   });
@@ -295,6 +335,12 @@ function accountBalances_(all) {
   all.forEach((t) => {
     if (t.date > today) return; // รายการล่วงหน้ายังไม่นับ
     if (bal[t.account] === undefined) bal[t.account] = 0;
+    if (t.type === 'transfer') {
+      if (bal[t.toAccount] === undefined) bal[t.toAccount] = 0;
+      bal[t.account] -= t.amount;
+      bal[t.toAccount] += t.amount;
+      return;
+    }
     bal[t.account] += t.type === 'income' ? t.amount : -t.amount;
   });
   Object.keys(bal).forEach((k) => { bal[k] = round2_(bal[k]); });
@@ -305,19 +351,29 @@ function validateTx_(d) {
   if (!d) throw new Error('ไม่มีข้อมูล');
   const date = String(d.date || '').trim();
   if (!isDate_(date)) throw new Error('รูปแบบวันที่ไม่ถูกต้อง (yyyy-MM-dd)');
-  const type = d.type === 'income' ? 'income' : d.type === 'expense' ? 'expense' : null;
-  if (!type) throw new Error('ประเภทต้องเป็นรายรับหรือรายจ่าย');
-  const cat = tRead_('Categories').filter((c) => c.id === d.category)[0];
-  if (!cat) throw new Error('ไม่พบหมวดหมู่ที่เลือก');
-  if (cat.type !== type) throw new Error('หมวดหมู่ไม่ตรงกับประเภทรายการ');
-  const acc = tRead_('Accounts').filter((a) => a.id === d.account)[0];
+  const type = ['income', 'expense', 'transfer'].indexOf(d.type) > -1 ? d.type : null;
+  if (!type) throw new Error('ประเภทต้องเป็นรายรับ รายจ่าย หรือโอน');
+  const accounts = tRead_('Accounts');
+  const acc = accounts.filter((a) => a.id === d.account)[0];
   if (!acc) throw new Error('ไม่พบบัญชีที่เลือก');
+  let catId = '', toAccount = '';
+  if (type === 'transfer') {
+    const to = accounts.filter((a) => a.id === d.toAccount)[0];
+    if (!to) throw new Error('เลือกบัญชีปลายทาง');
+    if (to.id === acc.id) throw new Error('บัญชีต้นทางและปลายทางต้องไม่ใช่บัญชีเดียวกัน');
+    toAccount = to.id;
+  } else {
+    const cat = tRead_('Categories').filter((c) => c.id === d.category)[0];
+    if (!cat) throw new Error('ไม่พบหมวดหมู่ที่เลือก');
+    if (cat.type !== type) throw new Error('หมวดหมู่ไม่ตรงกับประเภทรายการ');
+    catId = cat.id;
+  }
   const amount = round2_(Number(d.amount));
   if (!isFinite(amount) || amount <= 0) throw new Error('จำนวนเงินต้องมากกว่า 0');
   if (amount > 1e12) throw new Error('จำนวนเงินมากเกินไป');
   const attachment = /^[A-Za-z0-9_-]{10,100}$/.test(String(d.attachment || '')) ? d.attachment : '';
   return {
-    date: date, type: type, category: cat.id, account: acc.id, amount: amount,
+    date: date, type: type, category: catId, account: acc.id, toAccount: toAccount, amount: amount,
     note: String(d.note || '').trim().slice(0, 500), attachment: attachment,
   };
 }

@@ -141,4 +141,36 @@ t('missing category/account fall back instead of crashing', () => {
   assert(old.account);
 });
 
+t('transfer moves money between accounts and is not income/expense', () => {
+  const save = run(`saveAccount({ name: 'ออมทรัพย์', type: 'saving', openingBalance: 0, color: '#0EA5E9' })`);
+  const before = run('getAppData()').balances;
+  const tr = run(`addTransaction({ date: '${today}', type: 'transfer', account: 'acc_bank', toAccount: '${save.id}', amount: 500, note: 'ออม' })`);
+  assert.strictEqual(tr.category, '');
+  const after = run('getAppData()').balances;
+  assert.strictEqual(after.acc_bank, before.acc_bank - 500);
+  assert.strictEqual(after[save.id], 500);
+  const s = run(`getDashboardSummary({ from: '${today}', to: '${today}' })`);
+  assert(!JSON.stringify(s.byCategory).includes('""'), 'no empty category');
+  assert.throws(() => run(`addTransaction({ date: '${today}', type: 'transfer', account: 'acc_bank', toAccount: 'acc_bank', amount: 5 })`), /ไม่ใช่บัญชีเดียวกัน/);
+  assert.strictEqual(JSON.stringify(run(`deleteAccount('${save.id}')`)), JSON.stringify({ archived: true }), 'used by transfer → archived');
+});
+t('recurring transfer creates transfers', () => {
+  const save = run(`saveAccount({ name: 'ออมอัตโนมัติ', type: 'saving', openingBalance: 0, color: '#0EA5E9' })`);
+  run(`saveRecurring({ type: 'transfer', account: 'acc_bank', toAccount: '${save.id}', amount: 1000, dayOfMonth: 1, startDate: '2026-08-01', note: 'ออมทุกเดือน' })`);
+  const list = run('getAppData()').transactions.filter((x) => x.toAccount === save.id);
+  assert(list.length >= 3 && list.every((x) => x.type === 'transfer'), 'got ' + list.length);
+  assert.strictEqual(run('getAppData()').balances[save.id], list.length * 1000);
+});
+t('goals CRUD', () => {
+  const g = run(`saveGoal({ name: 'เงินสำรองฉุกเฉิน', targetAmount: 150000, account: '', targetDate: '2027-06-30' })`);
+  assert(g.id && g.targetAmount === 150000);
+  run(`saveGoal({ id: '${g.id}', name: 'เงินสำรอง', targetAmount: 120000, account: 'acc_bank' })`);
+  const goals = run('bootstrap()').goals;
+  assert.strictEqual(goals.length, 1);
+  assert.strictEqual(goals[0].account, 'acc_bank');
+  assert.throws(() => run(`saveGoal({ name: 'x', targetAmount: 0 })`), /มากกว่า 0/);
+  run(`deleteGoal('${g.id}')`);
+  assert.strictEqual(run('bootstrap()').goals.length, 0);
+});
+
 console.log(`\n${passed} passed`);

@@ -8,22 +8,23 @@
 const APP_NAME = 'MoneyPro';
 
 const TABLES = {
-  Transactions: ['ID', 'Date', 'Type', 'Category', 'Amount', 'Note', 'CreatedAt', 'UpdatedAt', 'Account', 'RecurringId', 'Attachment'],
+  Transactions: ['ID', 'Date', 'Type', 'Category', 'Amount', 'Note', 'CreatedAt', 'UpdatedAt', 'Account', 'RecurringId', 'Attachment', 'ToAccount'],
   Accounts:     ['ID', 'Name', 'Type', 'OpeningBalance', 'Color', 'Archived', 'SortOrder'],
   Categories:   ['ID', 'Name', 'Type', 'Icon', 'Color', 'MonthlyBudget', 'Group', 'Archived', 'SortOrder'],
-  Recurring:    ['ID', 'Type', 'Category', 'Account', 'Amount', 'DayOfMonth', 'Note', 'Active', 'StartDate', 'LastRun', 'CreatedAt'],
+  Recurring:    ['ID', 'Type', 'Category', 'Account', 'Amount', 'DayOfMonth', 'Note', 'Active', 'StartDate', 'LastRun', 'CreatedAt', 'ToAccount'],
+  Goals:        ['ID', 'Name', 'TargetAmount', 'Account', 'TargetDate', 'Color', 'Archived', 'CreatedAt'],
   Settings:     ['Key', 'Value'],
 };
 
 /** คอลัมน์ที่เก็บเป็นข้อความ (กัน Sheets แปลงเป็นวันที่) */
-const TEXT_COLUMNS = { Transactions: ['Date'], Recurring: ['StartDate', 'LastRun'] };
+const TEXT_COLUMNS = { Transactions: ['Date'], Recurring: ['StartDate', 'LastRun'], Goals: ['TargetDate'] };
 const NUMBER_COLUMNS = {
   Transactions: ['Amount'], Accounts: ['OpeningBalance', 'SortOrder'],
-  Categories: ['MonthlyBudget', 'SortOrder'], Recurring: ['Amount', 'DayOfMonth'],
+  Categories: ['MonthlyBudget', 'SortOrder'], Recurring: ['Amount', 'DayOfMonth'], Goals: ['TargetAmount'],
 };
-const BOOL_COLUMNS = { Accounts: ['Archived'], Categories: ['Archived'], Recurring: ['Active'] };
+const BOOL_COLUMNS = { Accounts: ['Archived'], Categories: ['Archived'], Recurring: ['Active'], Goals: ['Archived'] };
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 const CACHE_TTL = 600; // วินาที
 
 const DEFAULT_ACCOUNTS = [

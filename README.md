@@ -11,6 +11,12 @@
 - วิเคราะห์รายหมวด: แนวโน้ม 12 เดือน, ค่าเฉลี่ย, รายการที่ใช้บ่อย, รายการใหญ่สุด พร้อมปุ่มตั้งงบจากค่าที่แนะนำ
 - ตารางเปรียบเทียบรายเดือน (6 หรือ 12 เดือน) แยกตามหมวด ไล่สีตามยอด มีค่าเฉลี่ยและ % เปลี่ยนแปลงเดือนล่าสุด ดาวน์โหลดเป็น CSV ได้
 
+**เงินออม**
+- ยอดเงินออมทั้งหมด = ยอดรวมบัญชีประเภท "บัญชีออมทรัพย์" และ "การลงทุน" พร้อมกราฟยอดเงินออมและเงินที่ออมเพิ่มแต่ละเดือน
+- บันทึกแบบ **โอน/ออม** เพื่อย้ายเงินระหว่างบัญชี ไม่นับเป็นรายรับรายจ่าย โอนเข้าบัญชีออมจะนับเป็นเงินออม
+- เป้าหมายการออม (เช่น เงินสำรองฉุกเฉิน) แสดงความคืบหน้าและบอกว่าต้องออมเดือนละเท่าไรถึงจะทันกำหนด
+- บอกว่าเงินออมพอใช้กี่เดือนเทียบกับรายจ่ายเฉลี่ย 3 เดือน และตั้งออมอัตโนมัติทุกเดือนได้ด้วยรายการประจำ
+
 **บันทึกรายการ**
 - แนบรูปสลิปโอนเงินหรือใบเสร็จตอนบันทึก ระบบอ่านยอดเงิน วันที่ ร้านค้าหรือผู้รับ และเดาหมวดให้อัตโนมัติ (OCR ของ Google Drive รองรับภาษาไทย) รูปเก็บไว้ในโฟลเดอร์ `MoneyPro Receipts` ใน Drive ของคุณ
 - หลายบัญชี (เงินสด ธนาคาร บัตรเครดิต e-Wallet ออมทรัพย์ ลงทุน) พร้อมยอดคงเหลือแต่ละบัญชี
@@ -31,6 +37,7 @@
 |---|---|
 | `src/Code.gs` | API ที่หน้าเว็บเรียก: `bootstrap`, `getTransactions`, `addTransaction`, `updateTransaction`, `deleteTransaction`, `getDashboardSummary`, บัญชี, หมวด, งบ, รายการประจำ, ตั้งค่า |
 | `src/Data.gs` | ชั้นข้อมูล: ตาราง, cache, สร้างชีตและข้อมูลเริ่มต้น |
+| `src/Code.gs` (เพิ่มเติม) | เป้าหมายการออม: `saveGoal`, `deleteGoal` |
 | `src/Jobs.gs` | รายการประจำ, สำรองข้อมูล, ตัวตั้งเวลารายวัน |
 | `src/Receipt.gs` | อัปโหลดรูป, OCR และตัวแยกยอดเงิน/วันที่/ร้านค้า |
 | `src/Index.html` | หน้าเว็บทั้งหมด |
@@ -43,10 +50,11 @@
 
 | ชีต | คอลัมน์ |
 |---|---|
-| Transactions | ID, Date (yyyy-MM-dd), Type (income/expense), Category (ID หมวด), Amount, Note, CreatedAt, UpdatedAt, Account (ID บัญชี), RecurringId, Attachment (ID ไฟล์ใน Drive) |
+| Transactions | ID, Date (yyyy-MM-dd), Type (income/expense/transfer), Category (ID หมวด ว่างถ้าเป็นการโอน), Amount, Note, CreatedAt, UpdatedAt, Account (ID บัญชี), RecurringId, Attachment (ID ไฟล์ใน Drive), ToAccount (บัญชีปลายทางของการโอน) |
 | Accounts | ID, Name, Type, OpeningBalance, Color, Archived, SortOrder |
 | Categories | ID, Name, Type, Icon, Color, MonthlyBudget, Group (need/want/income), Archived, SortOrder |
-| Recurring | ID, Type, Category, Account, Amount, DayOfMonth, Note, Active, StartDate, LastRun, CreatedAt |
+| Recurring | ID, Type, Category, Account, Amount, DayOfMonth, Note, Active, StartDate, LastRun, CreatedAt, ToAccount |
+| Goals | ID, Name, TargetAmount, Account (ว่าง = เงินออมทั้งหมด), TargetDate, Color, Archived, CreatedAt |
 | Settings | Key, Value |
 
 ## ติดตั้งครั้งแรก

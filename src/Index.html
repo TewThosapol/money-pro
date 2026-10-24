@@ -219,6 +219,7 @@
       <section id="view-analysis" class="view hidden"></section>
       <section id="view-transactions" class="view hidden"></section>
       <section id="view-budgets" class="view hidden"></section>
+      <section id="view-savings" class="view hidden"></section>
       <section id="view-recurring" class="view hidden"></section>
       <section id="view-settings" class="view hidden"></section>
     </main>
@@ -249,6 +250,7 @@ const VIEWS = {
   analysis:     { title: 'วิเคราะห์การใช้จ่าย', icon: 'chart-pie' },
   transactions: { title: 'รายการ',         icon: 'list' },
   budgets:      { title: 'งบประมาณ',       icon: 'target' },
+  savings:      { title: 'เงินออม',        icon: 'piggy-bank' },
   recurring:    { title: 'รายการประจำ',     icon: 'repeat' },
   settings:     { title: 'ตั้งค่า',          icon: 'settings' },
 };
@@ -260,6 +262,8 @@ const ICON_CHOICES = ['utensils', 'coffee', 'home', 'zap', 'droplets', 'car', 'f
 const COLOR_CHOICES = ['#F97316', '#EF4444', '#EC4899', '#A855F7', '#4F46E5', '#2563EB', '#0EA5E9', '#14B8A6', '#10B981', '#84CC16', '#EAB308', '#64748B'];
 const RULE = { need: 0.5, want: 0.3, save: 0.2 };
 const PAGE_SIZE = 25;
+const SAVING_TYPES = ['saving', 'invest'];
+const TRANSFER_CAT = { id: '', name: 'โอน/ออม', icon: 'arrow-left-right', color: '#64748B', type: 'transfer', group: '' };
 // Apps Script ตัดข้อความหลังเครื่องหมายทับสองตัวในสคริปต์ทิ้ง จึงต่อ URL ด้วย join แทน
 const driveUrl = (id) => ['https:', '', 'drive.google.com', 'file', 'd', encodeURIComponent(id), 'view'].join('/');
 
@@ -337,7 +341,7 @@ function toast(msg, kind) {
 const IS_GAS = typeof google !== 'undefined' && google.script && google.script.run;
 
 const Demo = (() => {
-  const KEY = 'moneypro_demo_v1';
+  const KEY = 'moneypro_demo_v2';
   let db = null;
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} };
   const id = (p) => p + '-' + Math.random().toString(36).slice(2, 12).toUpperCase();
@@ -364,6 +368,7 @@ const Demo = (() => {
       { id: 'acc_cash', name: 'เงินสด', type: 'cash', openingBalance: 12000, color: '#10B981', archived: false, sortOrder: 1 },
       { id: 'acc_bank', name: 'กสิกรไทย', type: 'bank', openingBalance: 35000, color: '#4F46E5', archived: false, sortOrder: 2 },
       { id: 'acc_save', name: 'ออมทรัพย์ดิจิทัล', type: 'saving', openingBalance: 85000, color: '#0EA5E9', archived: false, sortOrder: 3 },
+      { id: 'acc_fund', name: 'กองทุนรวม', type: 'invest', openingBalance: 40000, color: '#A855F7', archived: false, sortOrder: 4 },
     ];
     let s = 42;
     const rnd = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
@@ -380,6 +385,8 @@ const Demo = (() => {
       const ym = base.getFullYear() + '-' + pad2(base.getMonth() + 1);
       const d = (n) => ym + '-' + pad2(Math.min(n, new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate()));
       add(d(1), 'income', 'salary', 42000, 'เงินเดือน', 'acc_bank');
+      if (d(2) <= today()) tx.push({ id: id('TX'), date: d(2), type: 'transfer', category: '', account: 'acc_bank', toAccount: 'acc_save', amount: 8000, note: 'ออมเงินหลังเงินเดือนเข้า', createdAt: stamp, updatedAt: stamp, recurringId: 'REC-SAVE', attachment: '' });
+      if (m % 2 === 0 && d(26) <= today()) tx.push({ id: id('TX'), date: d(26), type: 'transfer', category: '', account: 'acc_bank', toAccount: 'acc_fund', amount: 3000, note: 'ซื้อกองทุน', createdAt: stamp, updatedAt: stamp, recurringId: '', attachment: '' });
       if (m % 3 === 1) add(d(14), 'income', 'side', 6000 + Math.round(rnd() * 4000), 'งานฟรีแลนซ์ออกแบบ', 'acc_bank');
       if (m === 5) add(d(20), 'income', 'bonus', 30000, 'โบนัสกลางปี', 'acc_bank');
       add(d(28), 'income', 'invest_inc', 180 + Math.round(rnd() * 120), 'ดอกเบี้ยออมทรัพย์', 'acc_save');
@@ -406,7 +413,12 @@ const Demo = (() => {
       { id: 'REC-NET', type: 'expense', category: 'bills', account: 'acc_bank', amount: 599, dayOfMonth: 5, note: 'อินเทอร์เน็ตบ้าน', active: true, startDate: '2024-01-05', lastRun: lastOcc(5), createdAt: stamp },
       { id: 'REC-SAL', type: 'income', category: 'salary', account: 'acc_bank', amount: 42000, dayOfMonth: 1, note: 'เงินเดือน', active: true, startDate: '2024-01-01', lastRun: lastOcc(1), createdAt: stamp },
     ];
-    return { accounts, categories: cats, transactions: tx, recurring: rec, settings: { backupEnabled: false, lastBackup: '', lastBackupUrl: '', receiptFolderUrl: '' } };
+    rec.push({ id: 'REC-SAVE', type: 'transfer', category: '', account: 'acc_bank', toAccount: 'acc_save', amount: 8000, dayOfMonth: 2, note: 'ออมเงินหลังเงินเดือนเข้า', active: true, startDate: '2024-01-02', lastRun: lastOcc(2), createdAt: stamp });
+    const goals = [
+      { id: 'GOAL-EMERG', name: 'เงินสำรองฉุกเฉิน 6 เดือน', targetAmount: 180000, account: 'acc_save', targetDate: '', color: '#0EA5E9', archived: false, createdAt: stamp },
+      { id: 'GOAL-JP', name: 'เที่ยวญี่ปุ่น', targetAmount: 60000, account: 'acc_fund', targetDate: addMonths(monthOf(today()), 8) + '-01', color: '#EC4899', archived: false, createdAt: stamp },
+    ];
+    return { accounts, categories: cats, transactions: tx, recurring: rec, goals, settings: { backupEnabled: false, lastBackup: '', lastBackupUrl: '', receiptFolderUrl: '' } };
   }
   const load = () => {
     if (db) return db;
@@ -417,18 +429,30 @@ const Demo = (() => {
   const balances = () => {
     const b = {};
     load().accounts.forEach((a) => { b[a.id] = a.openingBalance; });
-    db.transactions.forEach((t) => { if (t.date <= today()) b[t.account] = r2((b[t.account] || 0) + (t.type === 'income' ? t.amount : -t.amount)); });
+    db.transactions.forEach((t) => {
+      if (t.date > today()) return;
+      if (t.type === 'transfer') { b[t.account] = r2((b[t.account] || 0) - t.amount); b[t.toAccount] = r2((b[t.toAccount] || 0) + t.amount); return; }
+      b[t.account] = r2((b[t.account] || 0) + (t.type === 'income' ? t.amount : -t.amount));
+    });
     return b;
   };
   function validate(d) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date || '')) throw new Error('รูปแบบวันที่ไม่ถูกต้อง');
-    const cat = load().categories.find((c) => c.id === d.category);
-    if (!cat) throw new Error('ไม่พบหมวดหมู่ที่เลือก');
-    if (cat.type !== d.type) throw new Error('หมวดหมู่ไม่ตรงกับประเภทรายการ');
-    if (!db.accounts.find((a) => a.id === d.account)) throw new Error('ไม่พบบัญชีที่เลือก');
+    if (!load().accounts.find((a) => a.id === d.account)) throw new Error('ไม่พบบัญชีที่เลือก');
+    let category = '', toAccount = '';
+    if (d.type === 'transfer') {
+      if (!db.accounts.find((a) => a.id === d.toAccount)) throw new Error('เลือกบัญชีปลายทาง');
+      if (d.toAccount === d.account) throw new Error('บัญชีต้นทางและปลายทางต้องไม่ใช่บัญชีเดียวกัน');
+      toAccount = d.toAccount;
+    } else {
+      const cat = db.categories.find((c) => c.id === d.category);
+      if (!cat) throw new Error('ไม่พบหมวดหมู่ที่เลือก');
+      if (cat.type !== d.type) throw new Error('หมวดหมู่ไม่ตรงกับประเภทรายการ');
+      category = cat.id;
+    }
     const amount = r2(Number(d.amount));
     if (!(amount > 0)) throw new Error('จำนวนเงินต้องมากกว่า 0');
-    return { date: d.date, type: d.type, category: d.category, account: d.account, amount, note: String(d.note || '').slice(0, 500), attachment: d.attachment || '' };
+    return { date: d.date, type: d.type, category, account: d.account, toAccount, amount, note: String(d.note || '').slice(0, 500), attachment: d.attachment || '' };
   }
   const nextOcc = (after, day) => {
     let y = +after.slice(0, 4), m = +after.slice(5, 7);
@@ -444,7 +468,7 @@ const Demo = (() => {
       let last = r.lastRun || addDays(r.startDate, -1), next = nextOcc(last, r.dayOfMonth), g = 0;
       while (next && next <= today() && g++ < 24) {
         const s = new Date().toISOString();
-        db.transactions.push({ id: id('TX'), date: next, type: r.type, category: r.category, account: r.account, amount: r.amount, note: r.note, createdAt: s, updatedAt: s, recurringId: r.id, attachment: '' });
+        db.transactions.push({ id: id('TX'), date: next, type: r.type, category: r.category, account: r.account, toAccount: r.toAccount || '', amount: r.amount, note: r.note, createdAt: s, updatedAt: s, recurringId: r.id, attachment: '' });
         last = next; next = nextOcc(last, r.dayOfMonth); n++;
       }
       r.lastRun = last;
@@ -456,7 +480,7 @@ const Demo = (() => {
     bootstrap() {
       const n = runRecurring();
       const d = load();
-      return { today: today(), accounts: d.accounts, categories: d.categories, recurring: d.recurring, settings: d.settings,
+      return { today: today(), accounts: d.accounts, categories: d.categories, recurring: d.recurring, goals: d.goals || [], settings: d.settings,
         transactions: d.transactions, balances: balances(), recurringGenerated: n };
     },
     addTransaction(x) { const c = validate(x), s = new Date().toISOString(); const t = { id: id('TX'), ...c, createdAt: s, updatedAt: s, recurringId: '' }; db.transactions.push(t); save(); return t; },
@@ -491,11 +515,22 @@ const Demo = (() => {
       const c = validate({ ...r, date: r.startDate });
       const day = Math.round(+r.dayOfMonth);
       if (!(day >= 1 && day <= 31)) throw new Error('วันที่ของเดือนต้องอยู่ระหว่าง 1–31');
-      const clean = { type: c.type, category: c.category, account: c.account, amount: c.amount, note: c.note, dayOfMonth: day, active: r.active !== false, startDate: c.date };
+      const clean = { type: c.type, category: c.category, account: c.account, toAccount: c.toAccount, amount: c.amount, note: c.note, dayOfMonth: day, active: r.active !== false, startDate: c.date };
       if (r.id) Object.assign(db.recurring.find((x) => x.id === r.id), clean);
       else db.recurring.push({ id: id('REC'), ...clean, lastRun: '', createdAt: new Date().toISOString() });
       save(); runRecurring(); return clean;
     },
+    saveGoal(g) {
+      if (!String(g.name || '').trim()) throw new Error('กรุณาตั้งชื่อเป้าหมาย');
+      const target = r2(+g.targetAmount);
+      if (!(target > 0)) throw new Error('เป้าหมายต้องมากกว่า 0');
+      db.goals = db.goals || [];
+      const clean = { name: g.name.trim(), targetAmount: target, account: g.account || '', targetDate: g.targetDate || '', color: g.color || '#0EA5E9', archived: false };
+      if (g.id) Object.assign(db.goals.find((x) => x.id === g.id), clean);
+      else db.goals.push({ id: id('GOAL'), ...clean, createdAt: new Date().toISOString() });
+      save(); return clean;
+    },
+    deleteGoal(gid) { db.goals = (db.goals || []).filter((g) => g.id !== gid); save(); return { ok: true }; },
     deleteRecurring(rid) { db.recurring = db.recurring.filter((r) => r.id !== rid); save(); return { ok: true }; },
     runRecurringNow() { return runRecurring(); },
     saveSettings(s) { Object.assign(db.settings, s); save(); return db.settings; },
@@ -522,7 +557,7 @@ function api(fn, ...args) {
  * =================================================================== */
 const S = {
   today: ymd(new Date()),
-  accounts: [], categories: [], recurring: [], settings: {},
+  accounts: [], categories: [], recurring: [], goals: [], settings: {},
   tx: [], balances: {},
   catById: {}, accById: {}, monthly: {},
   view: 'overview',
@@ -542,12 +577,16 @@ function indexData() {
   const m = {};
   S.tx.forEach((t) => {
     const k = monthOf(t.date);
-    const row = m[k] || (m[k] = { income: 0, expense: 0, byCat: {} });
+    const row = m[k] || (m[k] = { income: 0, expense: 0, byCat: {}, toSavings: 0 });
+    if (t.type === 'transfer') { row.toSavings += savingFlow(t); return; }
     row[t.type] += t.amount;
     row.byCat[t.category] = (row.byCat[t.category] || 0) + t.amount;
   });
   S.monthly = m;
 }
+const isSavingAcc = (id) => SAVING_TYPES.includes((S.accById[id] || {}).type);
+/** ผลต่อเงินออมของรายการโอน: เข้าบัญชีออม = บวก, ถอนออกจากบัญชีออม = ลบ */
+const savingFlow = (t) => (isSavingAcc(t.toAccount) ? t.amount : 0) - (isSavingAcc(t.account) ? t.amount : 0);
 const cat = (id) => S.catById[id] || { id, name: 'ไม่ระบุหมวด', icon: 'tag', color: '#64748B', type: 'expense', group: 'want', monthlyBudget: 0 };
 const acc = (id) => S.accById[id] || { id, name: 'ไม่ระบุบัญชี', type: 'bank', color: '#64748B' };
 const activeCats = (type) => S.categories.filter((c) => !c.archived && (!type || c.type === type)).sort((a, b) => a.sortOrder - b.sortOrder);
@@ -598,8 +637,9 @@ function period() {
 const inRange = (from, to) => S.tx.filter((t) => t.date >= from && t.date <= to);
 
 function summarize(list) {
-  const s = { income: 0, expense: 0, byCat: {}, count: list.length, need: 0, want: 0 };
+  const s = { income: 0, expense: 0, byCat: {}, count: list.length, need: 0, want: 0, toSavings: 0 };
   list.forEach((t) => {
+    if (t.type === 'transfer') { s.toSavings += savingFlow(t); return; }
     s[t.type] += t.amount;
     s.byCat[t.category] = (s.byCat[t.category] || 0) + t.amount;
     if (t.type === 'expense') s[cat(t.category).group === 'need' ? 'need' : 'want'] += t.amount;
@@ -765,32 +805,43 @@ const emptyState = (icon, title, sub, action) => `
   </div>`;
 const attachLink = (t) => t.attachment ? `<a href="${driveUrl(t.attachment)}" target="_blank" rel="noopener" class="inline-flex text-muted hover:text-accent align-middle ml-1" title="ดูสลิป/ใบเสร็จ" aria-label="ดูสลิปหรือใบเสร็จ"><i data-lucide="paperclip" class="!w-3.5 !h-3.5"></i></a>` : '';
 
+/** ข้อมูลสำหรับแสดงผลรายการ (รองรับรายการโอน) */
+function txView(t) {
+  if (t.type === 'transfer') {
+    const toSave = isSavingAcc(t.toAccount) && !isSavingAcc(t.account);
+    return { c: { ...TRANSFER_CAT, icon: toSave ? 'piggy-bank' : 'arrow-left-right', color: toSave ? '#0E7C66' : '#64748B' },
+      title: t.note || (toSave ? 'ออมเงิน' : 'โอนเงิน'), catName: toSave ? 'ออมเงิน' : 'โอนระหว่างบัญชี',
+      accText: `${acc(t.account).name} → ${acc(t.toAccount).name}`, amount: money(t.amount), cls: 'text-muted' };
+  }
+  const c = cat(t.category), inc = t.type === 'income';
+  return { c, title: t.note || c.name, catName: c.name, accText: acc(t.account).name,
+    amount: (inc ? '+' : '−') + money(t.amount).replace('−', ''), cls: inc ? 'text-income' : '' };
+}
 function txRow(t) {
-  const c = cat(t.category), a = acc(t.account);
-  const inc = t.type === 'income';
+  const v = txView(t);
   return `<tr>
     <td class="num text-sm text-muted whitespace-nowrap">${thDate(t.date)}</td>
-    <td><div class="flex items-center gap-3 min-w-0">${catIcon(c)}<div class="min-w-0"><p class="truncate max-w-[22rem]">${esc(t.note || c.name)}${attachLink(t)}</p><p class="sub truncate">${esc(c.name)}${t.recurringId ? ' (ประจำ)' : ''}</p></div></div></td>
-    <td class="text-sm text-muted whitespace-nowrap">${esc(a.name)}</td>
-    <td class="r num font-medium whitespace-nowrap ${inc ? 'text-income' : ''}">${inc ? '+' : '−'}${money(t.amount).replace('−', '')}</td>
+    <td><div class="flex items-center gap-3 min-w-0">${catIcon(v.c)}<div class="min-w-0"><p class="truncate max-w-[22rem]">${esc(v.title)}${attachLink(t)}</p><p class="sub truncate">${esc(v.catName)}${t.recurringId ? ' (ประจำ)' : ''}</p></div></div></td>
+    <td class="text-sm text-muted whitespace-nowrap">${esc(v.accText)}</td>
+    <td class="r num font-medium whitespace-nowrap ${v.cls}">${v.amount}</td>
     <td class="r no-print whitespace-nowrap">
       <button class="icon-btn inline-grid" data-edit-tx="${esc(t.id)}" aria-label="แก้ไข"><i data-lucide="pencil"></i></button>
       <button class="icon-btn inline-grid" data-del-tx="${esc(t.id)}" aria-label="ลบ"><i data-lucide="trash-2"></i></button>
     </td></tr>`;
 }
 function txItem(t) {
-  const c = cat(t.category), inc = t.type === 'income';
+  const v = txView(t);
   return `<button class="w-full flex items-center gap-3 py-3 text-left" data-edit-tx="${esc(t.id)}">
-    ${catIcon(c)}
-    <span class="min-w-0 flex-1"><span class="block truncate">${esc(t.note || c.name)}</span><span class="sub block truncate">${esc(c.name)}, ${esc(acc(t.account).name)}</span></span>
-    <span class="num font-medium whitespace-nowrap ${inc ? 'text-income' : ''}">${inc ? '+' : '−'}${money(t.amount).replace('−', '')}${t.attachment ? ' <i data-lucide="paperclip" class="inline !w-3 !h-3 text-muted"></i>' : ''}</span>
+    ${catIcon(v.c)}
+    <span class="min-w-0 flex-1"><span class="block truncate">${esc(v.title)}</span><span class="sub block truncate">${esc(v.catName)}, ${esc(v.accText)}</span></span>
+    <span class="num font-medium whitespace-nowrap ${v.cls}">${v.amount}${t.attachment ? ' <i data-lucide="paperclip" class="inline !w-3 !h-3 text-muted"></i>' : ''}</span>
   </button>`;
 }
 function txListMobile(list) {
   const groups = {};
   list.forEach((t) => (groups[t.date] = groups[t.date] || []).push(t));
   return Object.keys(groups).sort().reverse().map((d) => {
-    const net = groups[d].reduce((s, t) => s + (t.type === 'income' ? t.amount : -t.amount), 0);
+    const net = groups[d].reduce((s, t) => s + (t.type === 'income' ? t.amount : t.type === 'expense' ? -t.amount : 0), 0);
     return `<div class="pt-3"><div class="flex justify-between text-xs text-muted pb-1 border-b border-rule"><span>${thDate(d)}</span><span class="num">${money(net, { sign: true })}</span></div>
       <div class="divide-y divide-rule/70">${groups[d].map(txItem).join('')}</div></div>`;
   }).join('');
@@ -835,6 +886,8 @@ function renderOverview() {
       </div>
       <div class="panel lg:col-span-2">
         <div class="panel-h"><h2>ยอดเงินในบัญชี</h2><span class="ml-auto num font-semibold">${money(netWorth)}</span></div>
+        <button type="button" data-go="savings" class="mx-5 mb-1 w-[calc(100%-2.5rem)] flex items-center gap-2 text-sm rounded-lg bg-income/10 text-income px-3 py-2 hover:bg-income/15">
+          <i data-lucide="piggy-bank"></i><span>เงินออม</span><span class="num font-semibold ml-auto">${money(totalSavings())}</span><i data-lucide="chevron-right"></i></button>
         <div class="panel-b !pt-1 divide-y divide-rule/70">
           ${activeAccounts().map((a) => `
             <div class="flex items-center gap-3 py-2.5">
@@ -1167,8 +1220,8 @@ function filteredTx() {
   const f = S.filters;
   const q = f.q.trim().toLowerCase();
   return inRange(P.from, P.to).filter((t) =>
-    (f.type === 'all' || t.type === f.type) && (!f.account || t.account === f.account) && (!f.category || t.category === f.category) &&
-    (!q || (t.note || '').toLowerCase().includes(q) || cat(t.category).name.toLowerCase().includes(q) || String(t.amount).includes(q))
+    (f.type === 'all' || t.type === f.type) && (!f.account || t.account === f.account || t.toAccount === f.account) && (!f.category || t.category === f.category) &&
+    (!q || (t.note || '').toLowerCase().includes(q) || txView(t).catName.toLowerCase().includes(q) || String(t.amount).includes(q))
   ).sort((a, b) => (b.date + b.createdAt).localeCompare(a.date + a.createdAt));
 }
 
@@ -1182,7 +1235,7 @@ function renderTransactions() {
         <input id="fQ" type="search" class="field !pl-9 !py-2" placeholder="ค้นหาหมายเหตุ หมวด หรือจำนวนเงิน" value="${esc(f.q)}">
       </div>
       <div class="seg" role="group" aria-label="ประเภท">
-        ${[['all', 'ทั้งหมด'], ['expense', 'รายจ่าย'], ['income', 'รายรับ']].map(([k, l]) => `<button data-ftype="${k}" aria-pressed="${f.type === k}">${l}</button>`).join('')}
+        ${[['all', 'ทั้งหมด'], ['expense', 'รายจ่าย'], ['income', 'รายรับ'], ['transfer', 'โอน/ออม']].map(([k, l]) => `<button data-ftype="${k}" aria-pressed="${f.type === k}">${l}</button>`).join('')}
       </div>
       <select id="fCat" class="field !w-auto !py-2 text-sm"><option value="">ทุกหมวด</option>
         ${['expense', 'income'].map((ty) => `<optgroup label="${ty === 'expense' ? 'รายจ่าย' : 'รายรับ'}">${S.categories.filter((c) => c.type === ty).map((c) => `<option value="${c.id}" ${f.category === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</optgroup>`).join('')}
@@ -1235,9 +1288,10 @@ function downloadCsv(rows, name) {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 function exportTxCsv() {
-  const rows = [['วันที่', 'ประเภท', 'หมวดหมู่', 'บัญชี', 'จำนวนเงิน', 'หมายเหตุ', 'ไฟล์แนบ']];
-  filteredTx().slice().reverse().forEach((t) => rows.push([t.date, t.type === 'income' ? 'รายรับ' : 'รายจ่าย', cat(t.category).name, acc(t.account).name,
-    t.type === 'income' ? t.amount : -t.amount, t.note, t.attachment ? driveUrl(t.attachment) : '']));
+  const rows = [['วันที่', 'ประเภท', 'หมวดหมู่', 'บัญชี', 'ไปยังบัญชี', 'จำนวนเงิน', 'หมายเหตุ', 'ไฟล์แนบ']];
+  const typeName = { income: 'รายรับ', expense: 'รายจ่าย', transfer: 'โอน' };
+  filteredTx().slice().reverse().forEach((t) => rows.push([t.date, typeName[t.type], t.type === 'transfer' ? '' : cat(t.category).name, acc(t.account).name,
+    t.type === 'transfer' ? acc(t.toAccount).name : '', t.type === 'expense' ? -t.amount : t.amount, t.note, t.attachment ? driveUrl(t.attachment) : '']));
   const P = period();
   downloadCsv(rows, `moneypro-${P.from}_${P.to}.csv`);
   toast('ดาวน์โหลด CSV แล้ว');
@@ -1299,21 +1353,22 @@ function renderRecurring() {
   const list = S.recurring.slice().sort((a, b) => a.dayOfMonth - b.dayOfMonth);
   const monthlyOut = list.filter((r) => r.active && r.type === 'expense').reduce((s, r) => s + r.amount, 0);
   const monthlyIn = list.filter((r) => r.active && r.type === 'income').reduce((s, r) => s + r.amount, 0);
+  const monthlySave = list.filter((r) => r.active && r.type === 'transfer').reduce((s, r) => s + savingFlow(r), 0);
   $('#view-recurring').innerHTML = `
   <div class="space-y-5">
     <div class="flex flex-wrap items-center gap-3">
-      <p class="sub">รายการที่ระบบบันทึกให้อัตโนมัติทุกเดือน: รายจ่าย <b class="num text-ink">${money(monthlyOut)}</b> รายรับ <b class="num text-ink">${money(monthlyIn)}</b> ต่อเดือน</p>
+      <p class="sub">รายการที่ระบบบันทึกให้อัตโนมัติทุกเดือน: รายจ่าย <b class="num text-ink">${money(monthlyOut)}</b> รายรับ <b class="num text-ink">${money(monthlyIn)}</b>${monthlySave ? ` ออม <b class="num text-ink">${money(monthlySave)}</b>` : ''} ต่อเดือน</p>
       <button class="btn btn-primary ml-auto" data-action="add-rec"><i data-lucide="plus"></i>เพิ่มรายการประจำ</button>
     </div>
     <div class="panel">
       ${list.length ? `<div class="scroll-x"><table class="ledger">
         <thead><tr><th>รายการ</th><th>บัญชี</th><th class="r">จำนวนเงิน</th><th>ทุกวันที่</th><th>ครั้งถัดไป</th><th>สถานะ</th><th></th></tr></thead>
         <tbody>${list.map((r) => {
-          const c = cat(r.category);
+          const v = txView(r);
           return `<tr class="${r.active ? '' : 'opacity-60'}">
-            <td><div class="flex items-center gap-3">${catIcon(c)}<div><p class="whitespace-nowrap">${esc(r.note || c.name)}</p><p class="sub text-xs">${esc(c.name)}</p></div></div></td>
-            <td class="text-sm text-muted whitespace-nowrap">${esc(acc(r.account).name)}</td>
-            <td class="r num font-medium ${r.type === 'income' ? 'text-income' : ''}">${r.type === 'income' ? '+' : '−'}${money(r.amount)}</td>
+            <td><div class="flex items-center gap-3">${catIcon(v.c)}<div><p class="whitespace-nowrap">${esc(v.title)}</p><p class="sub text-xs">${esc(v.catName)}</p></div></div></td>
+            <td class="text-sm text-muted whitespace-nowrap">${esc(v.accText)}</td>
+            <td class="r num font-medium ${v.cls}">${v.amount}</td>
             <td class="num">${r.dayOfMonth}</td>
             <td class="text-sm whitespace-nowrap">${r.active ? thDate(nextRun(r), true) : '–'}</td>
             <td><button class="chip ${r.active ? 'chip-down' : 'chip-flat'}" data-toggle-rec="${r.id}">${r.active ? 'ใช้งาน' : 'หยุดไว้'}</button></td>
@@ -1323,6 +1378,181 @@ function renderRecurring() {
         : emptyState('repeat', 'ยังไม่มีรายการประจำ', 'เช่น ค่าเช่า ค่าอินเทอร์เน็ต เงินเดือน ระบบจะบันทึกให้ทุกเดือนตามวันที่กำหนด')}
     </div>
   </div>`;
+}
+
+/* =====================================================================
+ * View: Savings
+ * =================================================================== */
+const savingAccounts = () => S.accounts.filter((a) => SAVING_TYPES.includes(a.type) && (!a.archived || S.balances[a.id]));
+const totalSavings = () => savingAccounts().reduce((s, a) => s + (S.balances[a.id] || 0), 0);
+/** ยอดเงินออม ณ สิ้นแต่ละเดือน (ย้อนหลังจากยอดปัจจุบัน) */
+function savingsHistory(months) {
+  const ids = new Set(savingAccounts().map((a) => a.id));
+  const delta = {};
+  S.tx.forEach((t) => {
+    if (t.date > S.today) return;
+    const k = monthOf(t.date);
+    let d = 0;
+    if (t.type === 'transfer') d = (ids.has(t.toAccount) ? t.amount : 0) - (ids.has(t.account) ? t.amount : 0);
+    else if (ids.has(t.account)) d = t.type === 'income' ? t.amount : -t.amount;
+    if (d) delta[k] = (delta[k] || 0) + d;
+  });
+  let bal = totalSavings();
+  const cur = monthOf(S.today);
+  const out = {};
+  for (let m = cur; m >= months[0]; m = addMonths(m, -1)) {
+    out[m] = bal;
+    bal -= delta[m] || 0;
+  }
+  return months.map((m) => ({ month: m, balance: r2(out[m] ?? 0), added: r2(delta[m] || 0) }));
+}
+function goalProgress(g) {
+  const current = g.account ? (S.balances[g.account] || 0) : totalSavings();
+  const left = Math.max(0, g.targetAmount - current);
+  let perMonth = null, monthsLeft = null;
+  if (g.targetDate && left > 0) {
+    monthsLeft = Math.max(1, (+g.targetDate.slice(0, 4) - +S.today.slice(0, 4)) * 12 + (+g.targetDate.slice(5, 7) - +S.today.slice(5, 7)));
+    perMonth = left / monthsLeft;
+  }
+  return { current, left, pct: g.targetAmount ? Math.min(1, Math.max(0, current / g.targetAmount)) : 0, perMonth, monthsLeft };
+}
+
+function renderSavings() {
+  const P = period();
+  const total = totalSavings();
+  const accs = savingAccounts();
+  const cur = summarize(inRange(P.from, P.to));
+  const months = []; for (let i = 11; i >= 0; i--) months.push(addMonths(monthOf(S.today), -i));
+  const hist = savingsHistory(months);
+  const last3 = hist.slice(-4, -1).map((h) => h.added);
+  const avgAdd = last3.length ? last3.reduce((a, b) => a + b, 0) / last3.length : 0;
+  let expTotal = 0, expCnt = 0;
+  for (let i = 1; i <= 3; i++) { const m = S.monthly[addMonths(monthOf(S.today), -i)]; if (m) { expTotal += m.expense; expCnt++; } }
+  const avgExp = expCnt ? expTotal / expCnt : 0;
+  const runway = avgExp > 0 ? total / avgExp : null;
+  const added = hist.filter((h) => h.month >= monthOf(P.from) && h.month <= monthOf(P.to)).reduce((s, h) => s + h.added, 0);
+  const goals = S.goals.filter((g) => !g.archived);
+
+  const kpi = (label, val, sub, cls = '') => `<div class="px-5 py-4 min-w-0"><p class="sub">${label}</p><p class="num text-2xl font-semibold tracking-tight mt-1 truncate ${cls}">${val}</p><p class="sub text-xs mt-1">${sub}</p></div>`;
+  const runwayText = runway == null ? 'ยังไม่มีข้อมูลรายจ่าย' : runway >= 6 ? 'ถึงเกณฑ์เงินสำรองฉุกเฉิน 6 เดือนแล้ว' : `ควรมีอย่างน้อย 6 เดือน ขาดอีก ${money(Math.max(0, avgExp * 6 - total))}`;
+
+  $('#view-savings').innerHTML = `
+  <div class="space-y-5">
+    <div class="panel overflow-hidden grid grid-cols-2 lg:grid-cols-4 gap-px !bg-rule [&>*]:bg-surface">
+      ${kpi('เงินออมทั้งหมด', money(total), `${accs.length} บัญชีออม/ลงทุน`, total < 0 ? 'text-expense' : '')}
+      ${kpi('ออมเพิ่ม' + (P.isMonth ? 'เดือนนี้' : 'ช่วงนี้'), money(added, { sign: true }), esc(P.label), added < 0 ? 'text-expense' : 'text-income')}
+      ${kpi('เฉลี่ยออมต่อเดือน', money(Math.round(avgAdd)), 'จาก 3 เดือนก่อนหน้า')}
+      ${kpi('เงินสำรองพอใช้', runway == null ? '–' : runway.toFixed(1) + ' เดือน', runwayText, runway != null && runway < 3 ? 'text-warn' : '')}
+    </div>
+
+    ${accs.length ? '' : `<div class="panel p-5 flex flex-wrap items-center gap-4">
+      <span class="cat-ico bg-income/10 text-income"><i data-lucide="piggy-bank"></i></span>
+      <div class="flex-1 min-w-[14rem]"><p class="font-medium">เริ่มจากเพิ่มบัญชีเงินออม</p><p class="sub">สร้างบัญชีประเภท "บัญชีออมทรัพย์" หรือ "การลงทุน" แล้วโอนเงินเข้า ระบบจะนับยอดในบัญชีเหล่านั้นเป็นเงินออม</p></div>
+      <button class="btn btn-primary" data-action="add-saving-acc"><i data-lucide="plus"></i>เพิ่มบัญชีออม</button></div>`}
+
+    <div class="grid lg:grid-cols-5 gap-5">
+      <div class="panel lg:col-span-3">
+        <div class="panel-h"><h2>ยอดเงินออม 12 เดือน</h2><span class="sub ml-auto">แท่ง = ออมเพิ่มในเดือนนั้น</span></div>
+        <div class="panel-b"><div class="h-72"><canvas id="cSavings" aria-label="กราฟยอดเงินออม 12 เดือน"></canvas></div></div>
+      </div>
+      <div class="panel lg:col-span-2">
+        <div class="panel-h"><h2>บัญชีออมและลงทุน</h2>${accs.length ? `<button class="btn btn-ghost ml-auto !py-1.5" data-action="save-now"><i data-lucide="arrow-down-to-line"></i>ออมเงิน</button>` : ''}</div>
+        <div class="panel-b !pt-1 divide-y divide-rule/70">
+          ${accs.length ? accs.map((a) => `
+            <div class="flex items-center gap-3 py-2.5 ${a.archived ? 'opacity-50' : ''}">
+              <span class="cat-ico" style="background:${tint(a.color, 0.14)};color:${a.color}"><i data-lucide="${ACCOUNT_ICONS[a.type] || 'wallet'}"></i></span>
+              <span class="flex-1 min-w-0"><span class="block truncate">${esc(a.name)}</span><span class="sub text-xs">${ACCOUNT_TYPES[a.type]}${total > 0 ? `, ${pct((S.balances[a.id] || 0) / total)} ของเงินออม` : ''}</span></span>
+              <span class="num font-medium">${money(S.balances[a.id] || 0)}</span>
+              ${a.archived ? '' : `<button class="icon-btn" data-save-to="${a.id}" title="โอนเข้าบัญชีนี้" aria-label="โอนเข้า ${esc(a.name)}"><i data-lucide="plus"></i></button>`}
+            </div>`).join('') : '<p class="sub py-3">ยังไม่มีบัญชีออม</p>'}
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><h2>เป้าหมายการออม</h2><button class="btn btn-ghost ml-auto !py-1.5" data-action="add-goal"><i data-lucide="plus"></i>เพิ่มเป้าหมาย</button></div>
+      <div class="panel-b">
+        ${goals.length ? `<div class="grid md:grid-cols-2 gap-4">${goals.map((g) => {
+          const p = goalProgress(g);
+          const done = p.left <= 0;
+          const late = g.targetDate && g.targetDate < S.today && !done;
+          return `<div class="rounded-xl border border-rule p-4">
+            <div class="flex items-start gap-3">
+              <span class="cat-ico" style="background:${tint(g.color, 0.14)};color:${g.color}"><i data-lucide="${done ? 'badge-check' : 'flag'}"></i></span>
+              <div class="flex-1 min-w-0"><p class="font-medium truncate">${esc(g.name)}</p>
+                <p class="sub text-xs">${g.account ? esc(acc(g.account).name) : 'เงินออมทั้งหมด'}${g.targetDate ? `, ภายใน ${thDate(g.targetDate, true)}` : ''}</p></div>
+              <button class="icon-btn" data-edit-goal="${g.id}" aria-label="แก้ไขเป้าหมาย"><i data-lucide="pencil"></i></button>
+            </div>
+            <div class="flex items-baseline gap-2 mt-3"><span class="num text-xl font-semibold">${money(p.current)}</span><span class="sub num">/ ${money(g.targetAmount)}</span><span class="ml-auto num font-medium">${pct(p.pct)}</span></div>
+            <div class="bar mt-2"><span style="width:${(p.pct * 100).toFixed(1)}%;background:${done ? 'rgb(var(--income))' : g.color}"></span></div>
+            <p class="sub text-xs mt-2">${done ? 'ถึงเป้าหมายแล้ว' : late ? `เลยกำหนดแล้ว ยังขาด ${money(p.left)}`
+              : p.perMonth != null ? `ขาดอีก ${money(p.left)} ต้องออมเดือนละ ${money(Math.ceil(p.perMonth))} อีก ${p.monthsLeft} เดือน`
+              : avgAdd > 0 ? `ขาดอีก ${money(p.left)} ถ้าออมเท่าเดิมจะถึงในราว ${Math.ceil(p.left / avgAdd)} เดือน` : `ขาดอีก ${money(p.left)}`}</p>
+          </div>`;
+        }).join('')}</div>` : emptyState('flag', 'ยังไม่มีเป้าหมาย', 'เช่น เงินสำรองฉุกเฉิน 6 เดือน หรือเงินเที่ยวปลายปี ระบบจะคำนวณว่าต้องออมเดือนละเท่าไร')}
+      </div>
+    </div>
+
+    <div class="panel p-5 flex flex-wrap items-center gap-4">
+      <span class="cat-ico bg-accent/10 text-accent"><i data-lucide="repeat"></i></span>
+      <div class="flex-1 min-w-[14rem]"><p class="font-medium">ออมอัตโนมัติทุกเดือน</p><p class="sub">ตั้งรายการประจำแบบโอนเข้าบัญชีออมหลังเงินเดือนเข้า เช่น ทุกวันที่ 1 โอน 20% ของเงินเดือน${cur.income > 0 ? ` (ประมาณ ${money(Math.round(cur.income / P.months.length * 0.2 / 100) * 100)})` : ''}</p></div>
+      <button class="btn btn-ghost" data-action="add-rec-save"><i data-lucide="plus"></i>ตั้งออมอัตโนมัติ</button>
+    </div>
+  </div>`;
+
+  makeChart('savings', $('#cSavings'), {
+    data: {
+      labels: months.map((m) => thMonth(m, true)),
+      datasets: [
+        { type: 'line', label: 'ยอดเงินออม', data: hist.map((h) => h.balance), borderColor: cssColor('income'), backgroundColor: cssColor('income', 0.12), fill: true, borderWidth: 2, pointRadius: 2.5, tension: 0.3, yAxisID: 'y', order: 0 },
+        { type: 'bar', label: 'ออมเพิ่ม', data: hist.map((h) => h.added), backgroundColor: hist.map((h) => h.added < 0 ? cssColor('expense', 0.6) : cssColor('accent', 0.55)), borderRadius: 4, maxBarThickness: 18, yAxisID: 'y1', order: 1 },
+      ],
+    },
+    options: {
+      maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: { grid: { display: false } },
+        y: { position: 'left', grid: { color: cssColor('rule', 0.7) }, border: { display: false }, ticks: { callback: moneyShort } },
+        y1: { position: 'right', grid: { display: false }, border: { display: false }, ticks: { callback: moneyShort } },
+      },
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, padding: 16 } }, tooltip: tooltipMoney },
+    },
+  });
+}
+
+function openGoalForm(g) {
+  const d = g || { name: '', targetAmount: '', account: '', targetDate: '', color: '#0EA5E9' };
+  let color = d.color;
+  const accs = S.accounts.filter((a) => !a.archived);
+  openModal(`
+    ${modalHead(g ? 'แก้ไขเป้าหมาย' : 'เพิ่มเป้าหมายการออม')}
+    <div class="px-5 py-4 space-y-4">
+      <div><label class="label" for="gName">ชื่อเป้าหมาย</label><input id="gName" class="field" maxlength="60" value="${esc(d.name)}" placeholder="เช่น เงินสำรองฉุกเฉิน, เที่ยวญี่ปุ่น" autofocus></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="label" for="gTarget">จำนวนเป้าหมาย (บาท)</label><input id="gTarget" type="number" min="1" step="100" class="field num" value="${d.targetAmount}"></div>
+        <div><label class="label" for="gDate">ภายในวันที่ (ไม่บังคับ)</label><input id="gDate" type="date" class="field" value="${d.targetDate}"></div>
+      </div>
+      <div><label class="label" for="gAcc">นับความคืบหน้าจาก</label>
+        <select id="gAcc" class="field"><option value="">เงินออมทั้งหมด (ทุกบัญชีออม/ลงทุน)</option>${accs.map((a) => `<option value="${a.id}" ${a.id === d.account ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select>
+        <p class="sub text-xs mt-1">แนะนำให้แยกบัญชีต่อเป้าหมาย เช่น บัญชีเที่ยว เพื่อให้ติดตามได้แม่นยำ</p></div>
+      <div><p class="label">สี</p><div class="flex flex-wrap gap-2">${COLOR_CHOICES.map((x) => `<button type="button" class="w-7 h-7 rounded-full border-2" style="background:${x};border-color:${x === color ? 'rgb(var(--ink))' : 'transparent'}" data-color="${x}" aria-label="สี ${x}"></button>`).join('')}</div></div>
+      <p id="gErr" class="hidden text-sm text-expense"></p>
+    </div>
+    ${modalFoot(g ? `<button class="btn btn-ghost !text-expense" id="gDel"><i data-lucide="trash-2"></i>ลบ</button>` : '', `<button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary" id="gSave">บันทึก</button>`)}
+  `, (m) => {
+    $$('[data-color]', m).forEach((b) => b.onclick = () => { color = b.dataset.color; $$('[data-color]', m).forEach((x) => x.style.borderColor = x === b ? 'rgb(var(--ink))' : 'transparent'); });
+    $('#gSave', m).onclick = async () => {
+      try {
+        await api('saveGoal', { id: g && g.id, name: $('#gName', m).value, targetAmount: $('#gTarget', m).value, targetDate: $('#gDate', m).value, account: $('#gAcc', m).value, color });
+        closeModal(); toast('บันทึกเป้าหมายแล้ว'); await refresh();
+      } catch (e) { $('#gErr', m).textContent = e.message; $('#gErr', m).classList.remove('hidden'); }
+    };
+    if (g) $('#gDel', m).onclick = async () => {
+      closeModal();
+      if (!(await confirmDialog('ลบเป้าหมายนี้?', 'เงินในบัญชีไม่ได้รับผลกระทบ ลบเฉพาะเป้าหมาย'))) return;
+      try { await api('deleteGoal', g.id); toast('ลบเป้าหมายแล้ว'); await refresh(); } catch (e) { toast(e.message, 'error'); }
+    };
+  });
 }
 
 /* =====================================================================
@@ -1423,15 +1653,21 @@ function confirmDialog(title, text, okLabel = 'ลบ') {
   });
 }
 
+/** บัญชีออมแรกที่ไม่ใช่บัญชีต้นทาง (ใช้เป็นค่าเริ่มต้นของปลายทาง) */
+const defaultSavingAcc = (from) => ((activeAccounts().find((a) => SAVING_TYPES.includes(a.type) && a.id !== from)) ||
+  activeAccounts().find((a) => a.id !== from) || {}).id;
+/** บัญชีหลักสำหรับโอนออก: บัญชีธนาคารก่อน แล้วค่อยบัญชีอื่นที่ไม่ใช่บัญชีออม */
+const mainAccount = (except) => (activeAccounts().find((x) => x.type === 'bank' && x.id !== except) ||
+  activeAccounts().find((x) => !SAVING_TYPES.includes(x.type) && x.id !== except) || {}).id;
 const catOptions = (type, selected) => activeCats(type).map((c) => `<option value="${c.id}" ${c.id === selected ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
 const accOptions = (selected) => activeAccounts().map((a) => `<option value="${a.id}" ${a.id === selected ? 'selected' : ''}>${esc(a.name)}</option>`).join('');
 
 /* ---------- Transaction form (with receipt upload) ---------- */
-function openTxForm(t) {
+function openTxForm(t, preset) {
   const isEdit = !!t;
   const P = period();
   const defDate = S.today >= P.from && S.today <= P.to ? S.today : P.to;
-  const d = t || { type: 'expense', date: defDate, category: '', account: (activeAccounts()[0] || {}).id, amount: '', note: '', attachment: '' };
+  const d = t || Object.assign({ type: 'expense', date: defDate, category: '', account: (activeAccounts()[0] || {}).id, toAccount: '', amount: '', note: '', attachment: '' }, preset || {});
   const st = { type: d.type, attachment: d.attachment || '', uploadedNew: '' };
 
   openModal(`
@@ -1456,18 +1692,21 @@ function openTxForm(t) {
         </div>
       </div>
 
-      <div class="seg w-full grid grid-cols-2" role="group" aria-label="ประเภท">
+      <div class="seg w-full grid grid-cols-3" role="group" aria-label="ประเภท">
         <button type="button" data-txtype="expense" aria-pressed="${d.type === 'expense'}">รายจ่าย</button>
         <button type="button" data-txtype="income" aria-pressed="${d.type === 'income'}">รายรับ</button>
+        <button type="button" data-txtype="transfer" aria-pressed="${d.type === 'transfer'}">โอน/ออม</button>
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div><label class="label" for="tAmount">จำนวนเงิน (บาท)</label><input id="tAmount" type="number" inputmode="decimal" step="0.01" min="0.01" class="field num text-lg font-semibold" value="${d.amount}" placeholder="0.00" required></div>
         <div><label class="label" for="tDate">วันที่</label><input id="tDate" type="date" class="field" value="${d.date}" required></div>
       </div>
       <div class="grid grid-cols-2 gap-3">
-        <div><label class="label" for="tCat">หมวดหมู่</label><select id="tCat" class="field"><option value="">เลือกหมวด</option>${catOptions(d.type, d.category)}</select></div>
-        <div><label class="label" for="tAcc">บัญชี</label><select id="tAcc" class="field">${accOptions(d.account)}</select></div>
+        <div id="tCatWrap" class="${d.type === 'transfer' ? 'hidden' : ''}"><label class="label" for="tCat">หมวดหมู่</label><select id="tCat" class="field"><option value="">เลือกหมวด</option>${catOptions(d.type, d.category)}</select></div>
+        <div><label class="label" for="tAcc" id="tAccLabel">${d.type === 'transfer' ? 'จากบัญชี' : 'บัญชี'}</label><select id="tAcc" class="field">${accOptions(d.account)}</select></div>
+        <div id="tToWrap" class="${d.type === 'transfer' ? '' : 'hidden'}"><label class="label" for="tTo">ไปยังบัญชี</label><select id="tTo" class="field">${accOptions(d.toAccount || defaultSavingAcc(d.account))}</select></div>
       </div>
+      <p id="tTransferHint" class="sub text-xs ${d.type === 'transfer' ? '' : 'hidden'}">การโอนไม่นับเป็นรายรับหรือรายจ่าย ถ้าโอนเข้าบัญชีออมทรัพย์หรือการลงทุน จะนับเป็นเงินออม</p>
       <div><label class="label" for="tNote">หมายเหตุหรือร้านค้า</label><input id="tNote" class="field" maxlength="500" value="${esc(d.note)}" placeholder="เช่น ข้าวกลางวัน, ค่าไฟเดือนนี้"></div>
       <p id="txErr" class="hidden text-sm text-expense"></p>
     </form>
@@ -1477,8 +1716,15 @@ function openTxForm(t) {
     const setType = (ty) => {
       st.type = ty;
       $$('[data-txtype]', m).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.txtype === ty)));
-      const keep = $('#tCat', m).value;
-      $('#tCat', m).innerHTML = `<option value="">เลือกหมวด</option>${catOptions(ty, keep)}`;
+      const tr = ty === 'transfer';
+      $('#tCatWrap', m).classList.toggle('hidden', tr);
+      $('#tToWrap', m).classList.toggle('hidden', !tr);
+      $('#tTransferHint', m).classList.toggle('hidden', !tr);
+      $('#tAccLabel', m).textContent = tr ? 'จากบัญชี' : 'บัญชี';
+      if (!tr) {
+        const keep = $('#tCat', m).value;
+        $('#tCat', m).innerHTML = `<option value="">เลือกหมวด</option>${catOptions(ty, keep)}`;
+      }
     };
     $$('[data-txtype]', m).forEach((b) => b.onclick = () => setType(b.dataset.txtype));
 
@@ -1548,9 +1794,12 @@ function openTxForm(t) {
     $('#txSave', m).onclick = async () => {
       const data = {
         id: t && t.id, type: st.type, amount: parseFloat($('#tAmount', m).value), date: $('#tDate', m).value,
-        category: $('#tCat', m).value, account: $('#tAcc', m).value, note: $('#tNote', m).value.trim(), attachment: st.attachment,
+        category: st.type === 'transfer' ? '' : $('#tCat', m).value, account: $('#tAcc', m).value,
+        toAccount: st.type === 'transfer' ? $('#tTo', m).value : '', note: $('#tNote', m).value.trim(), attachment: st.attachment,
       };
-      const err = !(data.amount > 0) ? 'กรอกจำนวนเงินที่มากกว่า 0' : !data.date ? 'เลือกวันที่' : !data.category ? 'เลือกหมวดหมู่' : !data.account ? 'เลือกบัญชี' : '';
+      const err = !(data.amount > 0) ? 'กรอกจำนวนเงินที่มากกว่า 0' : !data.date ? 'เลือกวันที่'
+        : st.type !== 'transfer' && !data.category ? 'เลือกหมวดหมู่' : !data.account ? 'เลือกบัญชี'
+        : st.type === 'transfer' && data.toAccount === data.account ? 'เลือกบัญชีปลายทางที่ไม่ใช่บัญชีเดียวกัน' : '';
       if (err) { $('#txErr', m).textContent = err; $('#txErr', m).classList.remove('hidden'); return; }
       const btn = $('#txSave', m); btn.disabled = true; btn.textContent = 'กำลังบันทึก';
       try {
@@ -1648,14 +1897,14 @@ function prepareImage(file) {
 async function deleteTx(id) {
   const t = S.tx.find((x) => x.id === id);
   if (!t) return;
-  const ok = await confirmDialog('ลบรายการนี้?', `${esc(t.note || cat(t.category).name)} ${money(t.amount)} วันที่ ${thDate(t.date, true)}${t.attachment ? ' รวมถึงไฟล์สลิปที่แนบไว้' : ''} จะถูกลบถาวร`);
+  const ok = await confirmDialog('ลบรายการนี้?', `${esc(txView(t).title)} ${money(t.amount)} วันที่ ${thDate(t.date, true)}${t.attachment ? ' รวมถึงไฟล์สลิปที่แนบไว้' : ''} จะถูกลบถาวร`);
   if (!ok) return;
   try { await api('deleteTransaction', id); toast('ลบรายการแล้ว'); await refresh(); } catch (e) { toast(e.message, 'error'); }
 }
 
 /* ---------- Account form ---------- */
-function openAccForm(a) {
-  const d = a || { name: '', type: 'bank', openingBalance: 0, color: COLOR_CHOICES[5] };
+function openAccForm(a, preset) {
+  const d = a || Object.assign({ name: '', type: 'bank', openingBalance: 0, color: COLOR_CHOICES[5] }, preset || {});
   let color = d.color;
   openModal(`
     ${modalHead(a ? 'แก้ไขบัญชี' : 'เพิ่มบัญชี')}
@@ -1728,15 +1977,16 @@ function openCatForm(c) {
 }
 
 /* ---------- Recurring form ---------- */
-function openRecForm(r) {
-  const d = r || { type: 'expense', category: '', account: (activeAccounts()[0] || {}).id, amount: '', dayOfMonth: +S.today.slice(8, 10), startDate: S.today, note: '', active: true };
+function openRecForm(r, preset) {
+  const d = r || Object.assign({ type: 'expense', category: '', account: (activeAccounts()[0] || {}).id, toAccount: '', amount: '', dayOfMonth: +S.today.slice(8, 10), startDate: S.today, note: '', active: true }, preset || {});
   let type = d.type;
   openModal(`
     ${modalHead(r ? 'แก้ไขรายการประจำ' : 'เพิ่มรายการประจำ', 'ระบบจะบันทึกให้อัตโนมัติทุกเดือนตามวันที่กำหนด')}
     <div class="px-5 py-4 space-y-4">
-      <div class="seg w-full grid grid-cols-2" role="group" aria-label="ประเภท">
+      <div class="seg w-full grid grid-cols-3" role="group" aria-label="ประเภท">
         <button type="button" data-rtype="expense" aria-pressed="${type === 'expense'}">รายจ่าย</button>
         <button type="button" data-rtype="income" aria-pressed="${type === 'income'}">รายรับ</button>
+        <button type="button" data-rtype="transfer" aria-pressed="${type === 'transfer'}">ออมอัตโนมัติ</button>
       </div>
       <div><label class="label" for="rNote">ชื่อรายการ</label><input id="rNote" class="field" maxlength="500" value="${esc(d.note)}" placeholder="เช่น ค่าเช่าห้อง, Netflix" autofocus></div>
       <div class="grid grid-cols-2 gap-3">
@@ -1744,8 +1994,9 @@ function openRecForm(r) {
         <div><label class="label" for="rDay">ทุกวันที่</label><input id="rDay" type="number" min="1" max="31" class="field num" value="${d.dayOfMonth}"></div>
       </div>
       <div class="grid grid-cols-2 gap-3">
-        <div><label class="label" for="rCat">หมวดหมู่</label><select id="rCat" class="field"><option value="">เลือกหมวด</option>${catOptions(type, d.category)}</select></div>
-        <div><label class="label" for="rAcc">บัญชี</label><select id="rAcc" class="field">${accOptions(d.account)}</select></div>
+        <div id="rCatWrap" class="${type === 'transfer' ? 'hidden' : ''}"><label class="label" for="rCat">หมวดหมู่</label><select id="rCat" class="field"><option value="">เลือกหมวด</option>${catOptions(type, d.category)}</select></div>
+        <div><label class="label" for="rAcc" id="rAccLabel">${type === 'transfer' ? 'จากบัญชี' : 'บัญชี'}</label><select id="rAcc" class="field">${accOptions(d.account)}</select></div>
+        <div id="rToWrap" class="${type === 'transfer' ? '' : 'hidden'}"><label class="label" for="rTo">ไปยังบัญชี</label><select id="rTo" class="field">${accOptions(d.toAccount || defaultSavingAcc(d.account))}</select></div>
       </div>
       <div class="grid grid-cols-2 gap-3 items-end">
         <div><label class="label" for="rStart">เริ่มตั้งแต่</label><input id="rStart" type="date" class="field" value="${d.startDate}"></div>
@@ -1759,12 +2010,16 @@ function openRecForm(r) {
     $$('[data-rtype]', m).forEach((b) => b.onclick = () => {
       type = b.dataset.rtype;
       $$('[data-rtype]', m).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-      $('#rCat', m).innerHTML = `<option value="">เลือกหมวด</option>${catOptions(type, '')}`;
+      const tr = type === 'transfer';
+      $('#rCatWrap', m).classList.toggle('hidden', tr);
+      $('#rToWrap', m).classList.toggle('hidden', !tr);
+      $('#rAccLabel', m).textContent = tr ? 'จากบัญชี' : 'บัญชี';
+      if (!tr) $('#rCat', m).innerHTML = `<option value="">เลือกหมวด</option>${catOptions(type, '')}`;
     });
     $('#rSave', m).onclick = async () => {
       try {
         const n = await api('saveRecurring', { id: r && r.id, type, note: $('#rNote', m).value, amount: $('#rAmount', m).value, dayOfMonth: $('#rDay', m).value,
-          category: $('#rCat', m).value, account: $('#rAcc', m).value, startDate: $('#rStart', m).value, active: $('#rActive', m).checked });
+          category: type === 'transfer' ? '' : $('#rCat', m).value, account: $('#rAcc', m).value, toAccount: type === 'transfer' ? $('#rTo', m).value : '', startDate: $('#rStart', m).value, active: $('#rActive', m).checked });
         closeModal(); toast('บันทึกรายการประจำแล้ว'); await refresh();
       } catch (e) { $('#rErr', m).textContent = e.message; $('#rErr', m).classList.remove('hidden'); }
     };
@@ -1773,14 +2028,14 @@ function openRecForm(r) {
 
 /* ---------- Mobile "more" sheet ---------- */
 function openMoreSheet() {
-  openModal(`${modalHead('เมนู')}<div class="p-3">${['budgets', 'recurring', 'settings'].map((v) => `
+  openModal(`${modalHead('เมนู')}<div class="p-3">${['savings', 'budgets', 'recurring', 'settings'].map((v) => `
     <button type="button" class="nav-link !py-3 w-full" data-go="${v}"><i data-lucide="${VIEWS[v].icon}"></i>${VIEWS[v].title}</button>`).join('')}</div>`);
 }
 
 /* =====================================================================
  * Routing, rendering & events
  * =================================================================== */
-const RENDER = { overview: renderOverview, analysis: renderAnalysis, transactions: renderTransactions, budgets: renderBudgets, recurring: renderRecurring, settings: renderSettings };
+const RENDER = { overview: renderOverview, analysis: renderAnalysis, transactions: renderTransactions, budgets: renderBudgets, savings: renderSavings, recurring: renderRecurring, settings: renderSettings };
 
 function render() {
   const v = S.view;
@@ -1789,7 +2044,7 @@ function render() {
   $$('.view').forEach((el) => el.classList.toggle('hidden', el.id !== 'view-' + v));
   $$('[data-nav]').forEach((a) => a.dataset.nav === v ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
   $$('.tab-link').forEach((a) => {
-    const on = a.dataset.tab === v || (a.dataset.tab === 'more' && ['budgets', 'recurring', 'settings'].includes(v));
+    const on = a.dataset.tab === v || (a.dataset.tab === 'more' && ['savings', 'budgets', 'recurring', 'settings'].includes(v));
     on ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current');
   });
   $('#periodSel').disabled = v === 'recurring' || v === 'settings';
@@ -1822,7 +2077,7 @@ async function refresh() {
 }
 function apply(d) {
   S.today = d.today || S.today;
-  S.accounts = d.accounts || []; S.categories = d.categories || []; S.recurring = d.recurring || [];
+  S.accounts = d.accounts || []; S.categories = d.categories || []; S.recurring = d.recurring || []; S.goals = d.goals || [];
   S.settings = d.settings || {}; S.tx = d.transactions || []; S.balances = d.balances || {};
   indexData();
 }
@@ -1871,6 +2126,10 @@ function bind() {
       else if (a === 'add-rec') openRecForm();
       else if (a === 'add-acc') openAccForm();
       else if (a === 'add-cat') openCatForm();
+      else if (a === 'add-goal') openGoalForm();
+      else if (a === 'add-saving-acc') openAccForm(null, { type: 'saving', name: 'บัญชีออมทรัพย์', color: '#0EA5E9' });
+      else if (a === 'save-now') openTxForm(null, { type: 'transfer', account: mainAccount(), toAccount: defaultSavingAcc(''), note: 'ออมเงิน' });
+      else if (a === 'add-rec-save') openRecForm(null, { type: 'transfer', account: mainAccount(), toAccount: defaultSavingAcc(''), dayOfMonth: 1, note: 'ออมอัตโนมัติ' });
       else if (a === 'backup') {
         act.disabled = true;
         try { const r = await api('backupNow'); toast('สำรองข้อมูลแล้ว: ' + r.name); await refresh(); } catch (err) { toast(err.message, 'error'); }
@@ -1884,6 +2143,9 @@ function bind() {
     const dt = el('[data-del-tx]'); if (dt) { deleteTx(dt.dataset.delTx); return; }
     const ea = el('[data-edit-acc]'); if (ea) { openAccForm(S.accById[ea.dataset.editAcc]); return; }
     const ec = el('[data-edit-cat]'); if (ec) { openCatForm(S.catById[ec.dataset.editCat]); return; }
+    const eg = el('[data-edit-goal]'); if (eg) { openGoalForm(S.goals.find((g) => g.id === eg.dataset.editGoal)); return; }
+    const sv = el('[data-save-to]');
+    if (sv) { const to = sv.dataset.saveTo; openTxForm(null, { type: 'transfer', account: mainAccount(to), toAccount: to, note: 'ออมเงิน' }); return; }
     const er = el('[data-edit-rec]'); if (er) { openRecForm(S.recurring.find((r) => r.id === er.dataset.editRec)); return; }
     const dr = el('[data-del-rec]');
     if (dr) {

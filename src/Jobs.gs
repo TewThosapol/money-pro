@@ -33,7 +33,7 @@ function processRecurring_() {
         newTx.push({
           id: newId_('TX'), date: next, type: r.type, category: r.category, amount: r.amount,
           note: r.note || 'รายการประจำ', createdAt: now, updatedAt: now,
-          account: r.account, recurringId: r.id, attachment: '',
+          account: r.account, recurringId: r.id, attachment: '', toAccount: r.type === 'transfer' ? r.toAccount : '',
         });
         last = next;
         next = nextOccurrence_(last, r.dayOfMonth);
