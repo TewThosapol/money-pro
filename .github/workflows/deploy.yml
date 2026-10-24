@@ -16,6 +16,7 @@ jobs:
           node-version: 20
       - run: node tests/receipt.test.js
       - run: node tests/backend.test.js
+      - run: node tests/html-gas.test.js
 
   deploy:
     needs: test

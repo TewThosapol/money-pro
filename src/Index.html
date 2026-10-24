@@ -262,6 +262,8 @@ const ICON_CHOICES = ['utensils', 'coffee', 'home', 'zap', 'droplets', 'car', 'f
 const COLOR_CHOICES = ['#F97316', '#EF4444', '#EC4899', '#A855F7', '#4F46E5', '#2563EB', '#0EA5E9', '#14B8A6', '#10B981', '#84CC16', '#EAB308', '#64748B'];
 const RULE = { need: 0.5, want: 0.3, save: 0.2 };
 const PAGE_SIZE = 25;
+// Apps Script ตัดข้อความแบบคอมเมนต์ทิ้งแม้อยู่ในสตริง จึงห้ามมีเครื่องหมายเปิด/ปิดคอมเมนต์ในสตริง
+const RCPT_ACCEPT = ['image', '*,application', 'pdf'].join('/');
 const SAVING_TYPES = ['saving', 'invest'];
 const TRANSFER_CAT = { id: '', name: 'โอน/ออม', icon: 'arrow-left-right', color: '#64748B', type: 'transfer', group: '' };
 // Apps Script ตัดข้อความหลังเครื่องหมายทับสองตัวในสคริปต์ทิ้ง จึงต่อ URL ด้วย join แทน
@@ -1674,7 +1676,7 @@ function openTxForm(t, preset) {
     ${modalHead(isEdit ? 'แก้ไขรายการ' : 'บันทึกรายการ')}
     <form id="txForm" class="px-5 py-4 space-y-4" novalidate>
       <div id="dropZone" class="drop p-3">
-        <input type="file" id="rcptFile" accept="image/*,application/pdf" class="sr-only">
+        <input type="file" id="rcptFile" accept="${RCPT_ACCEPT}" class="sr-only">
         <div id="rcptEmpty" class="${st.attachment ? 'hidden' : ''} flex items-center gap-3">
           <span class="cat-ico bg-accent/10 text-accent"><i data-lucide="scan-text"></i></span>
           <div class="flex-1 min-w-0"><p class="font-medium text-sm">แนบสลิปหรือใบเสร็จ</p><p class="sub text-xs">ระบบจะอ่านยอดเงิน วันที่ และร้านค้าให้อัตโนมัติ</p></div>
