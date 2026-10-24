@@ -1,0 +1,1882 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<base target="_top">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MoneyPro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          paper: 'rgb(var(--paper) / <alpha-value>)',
+          surface: 'rgb(var(--surface) / <alpha-value>)',
+          ink: 'rgb(var(--ink) / <alpha-value>)',
+          muted: 'rgb(var(--muted) / <alpha-value>)',
+          rule: 'rgb(var(--rule) / <alpha-value>)',
+          income: 'rgb(var(--income) / <alpha-value>)',
+          expense: 'rgb(var(--expense) / <alpha-value>)',
+          accent: 'rgb(var(--accent) / <alpha-value>)',
+          warn: 'rgb(var(--warn) / <alpha-value>)',
+          need: 'rgb(var(--need) / <alpha-value>)',
+          want: 'rgb(var(--want) / <alpha-value>)',
+        },
+        fontFamily: { sans: ['Anuphan', 'system-ui', 'sans-serif'] },
+      },
+    },
+  };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://unpkg.com/lucide@0.453.0/dist/umd/lucide.min.js"></script>
+<style>
+  :root {
+    --paper: 244 246 249; --surface: 255 255 255; --ink: 15 30 51; --muted: 92 105 126; --rule: 223 227 234;
+    --income: 14 124 102; --expense: 180 35 24; --accent: 37 76 168; --warn: 168 108 18;
+    --need: 37 76 168; --want: 196 131 20;
+    color-scheme: light;
+  }
+  .dark {
+    --paper: 10 17 29; --surface: 17 26 41; --ink: 229 234 242; --muted: 145 158 178; --rule: 37 49 68;
+    --income: 61 196 158; --expense: 247 112 100; --accent: 125 155 255; --warn: 230 170 70;
+    --need: 125 155 255; --want: 236 178 72;
+    color-scheme: dark;
+  }
+  html, body { background: rgb(var(--paper)); color: rgb(var(--ink)); }
+  body { font-family: 'Anuphan', system-ui, sans-serif; font-size: 15px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+  :focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; border-radius: 6px; }
+
+  /* Panels: ใช้เส้นขอบแทนเงา ให้ดูเป็นเอกสารการเงิน */
+  .panel { background: rgb(var(--surface)); border: 1px solid rgb(var(--rule)); border-radius: 14px; }
+  .panel-h { display:flex; align-items:baseline; gap:.75rem; padding: 1rem 1.25rem .5rem; }
+  .panel-h h2 { font-size: 1.02rem; font-weight: 600; }
+  .panel-b { padding: .5rem 1.25rem 1.25rem; }
+  .sub { color: rgb(var(--muted)); font-size: .85rem; }
+
+  :where(.btn) { display:inline-flex; }
+  .btn { align-items:center; gap:.45rem; border-radius: 10px; padding: .55rem .95rem; font-weight: 500; font-size: .92rem; transition: background-color .15s, border-color .15s; white-space: nowrap; }
+  .btn-primary { background: rgb(var(--ink)); color: rgb(var(--surface)); }
+  .btn-primary:hover { background: rgb(var(--ink) / .86); }
+  .btn-ghost { border: 1px solid rgb(var(--rule)); background: rgb(var(--surface)); }
+  .btn-ghost:hover { border-color: rgb(var(--muted) / .6); }
+  .btn-danger { background: rgb(var(--expense)); color: #fff; }
+  .btn:disabled { opacity: .55; cursor: not-allowed; }
+  :where(.icon-btn) { display:grid; }
+  .icon-btn { width: 2.1rem; height: 2.1rem; place-items:center; border-radius: 8px; color: rgb(var(--muted)); }
+  .icon-btn:hover { background: rgb(var(--rule) / .6); color: rgb(var(--ink)); }
+
+  .field { width:100%; background: rgb(var(--paper)); border:1px solid rgb(var(--rule)); border-radius:10px; padding:.6rem .8rem; color: rgb(var(--ink)); }
+  .field:focus { outline:none; border-color: rgb(var(--accent)); background: rgb(var(--surface)); }
+  select.field { cursor:pointer; }
+  .label { display:block; font-size:.85rem; font-weight:500; margin-bottom:.3rem; }
+
+  :where(.seg) { display:inline-flex; }
+  .seg { background: rgb(var(--paper)); border:1px solid rgb(var(--rule)); border-radius:10px; padding:3px; }
+  .seg button { padding:.35rem .8rem; border-radius:7px; font-size:.88rem; color: rgb(var(--muted)); }
+  .seg button[aria-pressed="true"] { background: rgb(var(--surface)); color: rgb(var(--ink)); box-shadow: 0 1px 2px rgb(0 0 0 / .08); font-weight:500; }
+
+  :where(.nav-link) { display:flex; }
+  .nav-link { align-items:center; gap:.7rem; padding:.55rem .75rem; border-radius:9px; color: rgb(var(--muted)); font-weight:500; }
+  .nav-link:hover { color: rgb(var(--ink)); background: rgb(var(--rule) / .45); }
+  .nav-link[aria-current="page"] { color: rgb(var(--ink)); background: rgb(var(--rule) / .7); }
+
+  :where(.tab-link) { display:flex; }
+  .tab-link { flex-direction:column; align-items:center; gap:2px; font-size:.7rem; color: rgb(var(--muted)); padding:.35rem 0; }
+  .tab-link[aria-current="page"] { color: rgb(var(--ink)); font-weight:600; }
+
+  table.ledger { width:100%; border-collapse: collapse; }
+  table.ledger th { text-align:left; font-weight:500; font-size:.8rem; color: rgb(var(--muted)); padding:.55rem .75rem; border-bottom:1px solid rgb(var(--rule)); white-space:nowrap; }
+  table.ledger td { padding:.6rem .75rem; border-bottom:1px solid rgb(var(--rule) / .7); vertical-align: middle; }
+  table.ledger tr:last-child td { border-bottom: 0; }
+  table.ledger .r { text-align:right; }
+  table.ledger tbody tr:hover td { background: rgb(var(--paper) / .7); }
+
+  /* ตารางเปรียบเทียบรายเดือน: คอลัมน์แรกติดซ้ายเวลาเลื่อน */
+  .matrix { border-collapse: separate; border-spacing:0; min-width:100%; }
+  .matrix th, .matrix td { padding:.5rem .7rem; white-space:nowrap; border-bottom:1px solid rgb(var(--rule) / .7); text-align:right; }
+  .matrix th { font-size:.8rem; font-weight:500; color: rgb(var(--muted)); position: sticky; top: 0; background: rgb(var(--surface)); }
+  .matrix .stick { position: sticky; left: 0; background: rgb(var(--surface)); text-align:left; z-index: 1; border-right:1px solid rgb(var(--rule)); }
+  .matrix tr.total td { font-weight:600; border-top:1px solid rgb(var(--ink) / .5); }
+  .matrix tr.group td { color: rgb(var(--muted)); font-size:.78rem; padding-top:1rem; text-align:left; border-bottom:0; }
+
+  :where(.chip) { display:inline-flex; }
+  .chip { align-items:center; gap:.3rem; font-size:.75rem; font-weight:500; border-radius:999px; padding:.1rem .55rem; white-space:nowrap; }
+  .chip-up { color: rgb(var(--expense)); background: rgb(var(--expense) / .1); }
+  .chip-down { color: rgb(var(--income)); background: rgb(var(--income) / .12); }
+  .chip-flat { color: rgb(var(--muted)); background: rgb(var(--rule) / .7); }
+  .chip-warn { color: rgb(var(--warn)); background: rgb(var(--warn) / .12); }
+
+  .bar { height: 8px; border-radius: 999px; background: rgb(var(--rule)); overflow: hidden; }
+  .bar > span { display:block; height:100%; border-radius:999px; }
+
+  :where(.cat-ico) { display:grid; }
+  .cat-ico { width:2.1rem; height:2.1rem; border-radius:9px; place-items:center; flex-shrink:0; }
+  .cat-ico [data-lucide], .cat-ico svg { width:1.05rem; height:1.05rem; }
+  [data-lucide] { width:1.1em; height:1.1em; stroke-width:2; }
+
+  .insight { display:grid; grid-template-columns: 4px 1fr; gap:.85rem; padding:.85rem 0; border-bottom:1px solid rgb(var(--rule) / .7); }
+  .insight:last-child { border-bottom:0; }
+  .insight::before { content:''; border-radius:4px; }
+  .insight.bad::before { background: rgb(var(--expense)); }
+  .insight.warn::before { background: rgb(var(--warn)); }
+  .insight.good::before { background: rgb(var(--income)); }
+  .insight.info::before { background: rgb(var(--accent)); }
+
+  /* แถบการจัดสรรรายได้ (จุดเด่นของหน้าภาพรวม) */
+  .alloc { position: relative; height: 46px; border-radius: 10px; overflow: hidden; display:flex; background: rgb(var(--rule) / .7); }
+  .alloc > div { height:100%; display:flex; align-items:center; padding: 0 .7rem; color:#fff; font-size:.82rem; font-weight:600; overflow:hidden; white-space:nowrap; transition: width .5s cubic-bezier(.2,.8,.2,1); }
+  .alloc-marks { position: relative; height: 22px; }
+  .alloc-marks span { position:absolute; top:0; transform: translateX(-50%); font-size:.72rem; color: rgb(var(--muted)); white-space:nowrap; }
+  .alloc-marks span::before { content:''; position:absolute; left:50%; top:-52px; height:52px; border-left: 1.5px dashed rgb(var(--ink) / .55); }
+
+  .modal-back { position:fixed; inset:0; background: rgb(8 14 26 / .5); z-index:50; }
+  .modal { position:fixed; z-index:51; background: rgb(var(--surface)); border:1px solid rgb(var(--rule)); }
+  @media (min-width: 640px) { .modal { left:50%; top:50%; transform: translate(-50%,-50%); width: min(560px, calc(100vw - 2rem)); max-height: calc(100vh - 3rem); border-radius: 16px; overflow:auto; } }
+  @media (max-width: 639px) { .modal { left:0; right:0; bottom:0; max-height: 92vh; border-radius: 18px 18px 0 0; overflow:auto; padding-bottom: env(safe-area-inset-bottom); animation: sheet .25s cubic-bezier(.2,.8,.2,1); } }
+  @keyframes sheet { from { transform: translateY(40px); opacity:.4 } to { transform:none; opacity:1 } }
+
+  .drop { border:1.5px dashed rgb(var(--rule)); border-radius:12px; transition: border-color .15s, background-color .15s; }
+  .drop.over, .drop:hover { border-color: rgb(var(--accent)); background: rgb(var(--accent) / .04); }
+  .autofilled { box-shadow: 0 0 0 2px rgb(var(--accent) / .35); }
+  @keyframes spin { to { transform: rotate(360deg) } }
+  .spin { animation: spin 1s linear infinite; }
+
+  .scroll-x { overflow-x:auto; -webkit-overflow-scrolling: touch; }
+  .hidden-important { display:none !important; }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+  @media print {
+    aside, .tabbar, .topbar-actions, .no-print, .modal, .modal-back, #toast { display:none !important; }
+    body { background:#fff; font-size: 12px; }
+    .panel { border-color:#ccc; break-inside: avoid; }
+    main { padding: 0 !important; }
+  }
+</style>
+</head>
+<body>
+<div id="demoBanner" class="hidden no-print text-center text-xs py-1.5 px-3 bg-accent/10 text-accent">
+  โหมดทดลอง ข้อมูลเก็บในเบราว์เซอร์นี้เท่านั้น Deploy บน Google Apps Script เพื่อบันทึกลง Google Sheet และอ่านสลิปได้
+</div>
+
+<div class="md:flex min-h-screen">
+  <!-- Sidebar (desktop) -->
+  <aside class="hidden md:flex md:flex-col w-60 shrink-0 border-r border-rule bg-surface px-4 py-5 sticky top-0 h-screen">
+    <div class="flex items-center gap-2.5 px-2 mb-7">
+      <div class="w-8 h-8 rounded-lg bg-ink text-surface grid place-items-center"><i data-lucide="landmark"></i></div>
+      <div>
+        <p class="font-semibold leading-tight">MoneyPro</p>
+        <p class="text-xs text-muted leading-tight">บัญชีการเงินส่วนตัว</p>
+      </div>
+    </div>
+    <nav class="space-y-1" id="sideNav"></nav>
+    <div class="mt-auto pt-4 border-t border-rule">
+      <p class="text-xs text-muted px-2">ยอดเงินรวมทุกบัญชี</p>
+      <p id="sideNetWorth" class="num text-xl font-semibold px-2 mt-0.5">฿0</p>
+    </div>
+  </aside>
+
+  <div class="flex-1 min-w-0">
+    <header class="sticky top-0 z-30 bg-paper/90 backdrop-blur border-b border-rule">
+      <div class="max-w-[1180px] mx-auto px-4 md:px-8 h-16 flex items-center gap-3">
+        <div class="md:hidden w-8 h-8 rounded-lg bg-ink text-surface grid place-items-center shrink-0"><i data-lucide="landmark"></i></div>
+        <h1 id="viewTitle" class="text-lg md:text-xl font-semibold truncate">ภาพรวม</h1>
+        <div class="topbar-actions ml-auto flex items-center gap-2">
+          <label for="periodSel" class="sr-only">ช่วงเวลา</label>
+          <select id="periodSel" class="field !w-auto !py-2 text-sm max-w-[10.5rem] md:max-w-none"></select>
+          <button id="addBtn" class="btn btn-primary hidden md:inline-flex"><i data-lucide="plus"></i>บันทึกรายการ</button>
+        </div>
+      </div>
+      <div id="customRange" class="hidden max-w-[1180px] mx-auto px-4 md:px-8 pb-3 flex flex-wrap items-end gap-2 no-print">
+        <label class="text-sm">ตั้งแต่ <input type="date" id="rangeFrom" class="field !w-auto !py-1.5 ml-1"></label>
+        <label class="text-sm">ถึง <input type="date" id="rangeTo" class="field !w-auto !py-1.5 ml-1"></label>
+        <button id="rangeApply" class="btn btn-ghost !py-1.5">ใช้ช่วงนี้</button>
+      </div>
+    </header>
+
+    <main class="max-w-[1180px] mx-auto px-4 md:px-8 py-6 pb-28 md:pb-12">
+      <div id="loading" class="py-24 text-center text-muted">
+        <i data-lucide="loader-circle" class="spin inline-block !w-7 !h-7"></i>
+        <p class="mt-3 text-sm">กำลังโหลดข้อมูล</p>
+      </div>
+      <section id="view-overview" class="view hidden"></section>
+      <section id="view-analysis" class="view hidden"></section>
+      <section id="view-transactions" class="view hidden"></section>
+      <section id="view-budgets" class="view hidden"></section>
+      <section id="view-recurring" class="view hidden"></section>
+      <section id="view-settings" class="view hidden"></section>
+    </main>
+  </div>
+</div>
+
+<!-- Tab bar (mobile) -->
+<nav class="tabbar md:hidden fixed bottom-0 inset-x-0 z-40 bg-surface border-t border-rule grid grid-cols-5 items-end" style="padding-bottom: env(safe-area-inset-bottom)">
+  <a href="#overview" class="tab-link" data-tab="overview"><i data-lucide="layout-dashboard"></i>ภาพรวม</a>
+  <a href="#analysis" class="tab-link" data-tab="analysis"><i data-lucide="chart-pie"></i>วิเคราะห์</a>
+  <button class="flex justify-center -mt-5" data-action="add" aria-label="บันทึกรายการ">
+    <span class="w-14 h-14 rounded-2xl bg-ink text-surface grid place-items-center shadow-lg"><i data-lucide="plus" class="!w-6 !h-6"></i></span>
+  </button>
+  <a href="#transactions" class="tab-link" data-tab="transactions"><i data-lucide="list"></i>รายการ</a>
+  <button class="tab-link" data-action="more" data-tab="more"><i data-lucide="menu"></i>เพิ่มเติม</button>
+</nav>
+
+<div id="modalRoot"></div>
+<div id="toast" class="hidden fixed z-[70] left-1/2 -translate-x-1/2 bottom-24 md:bottom-8 bg-ink text-surface rounded-xl px-4 py-3 text-sm shadow-lg max-w-[92vw] flex items-center gap-2"></div>
+
+<script>
+'use strict';
+/* =====================================================================
+ * Constants
+ * =================================================================== */
+const VIEWS = {
+  overview:     { title: 'ภาพรวม',        icon: 'layout-dashboard' },
+  analysis:     { title: 'วิเคราะห์การใช้จ่าย', icon: 'chart-pie' },
+  transactions: { title: 'รายการ',         icon: 'list' },
+  budgets:      { title: 'งบประมาณ',       icon: 'target' },
+  recurring:    { title: 'รายการประจำ',     icon: 'repeat' },
+  settings:     { title: 'ตั้งค่า',          icon: 'settings' },
+};
+const ACCOUNT_TYPES = { cash: 'เงินสด', bank: 'บัญชีธนาคาร', credit: 'บัตรเครดิต', ewallet: 'e-Wallet', saving: 'บัญชีออมทรัพย์', invest: 'การลงทุน' };
+const ACCOUNT_ICONS = { cash: 'banknote', bank: 'landmark', credit: 'credit-card', ewallet: 'smartphone', saving: 'piggy-bank', invest: 'trending-up' };
+const ICON_CHOICES = ['utensils', 'coffee', 'home', 'zap', 'droplets', 'car', 'fuel', 'bus', 'train-front', 'plane', 'receipt', 'wifi', 'smartphone',
+  'heart-pulse', 'dumbbell', 'shopping-bag', 'shirt', 'gift', 'clapperboard', 'gamepad-2', 'music', 'graduation-cap', 'book-open', 'baby',
+  'shield', 'wrench', 'circle-ellipsis', 'briefcase', 'award', 'laptop', 'trending-up', 'hand-coins', 'piggy-bank', 'wallet', 'plus-circle', 'tag'];
+const COLOR_CHOICES = ['#F97316', '#EF4444', '#EC4899', '#A855F7', '#4F46E5', '#2563EB', '#0EA5E9', '#14B8A6', '#10B981', '#84CC16', '#EAB308', '#64748B'];
+const RULE = { need: 0.5, want: 0.3, save: 0.2 };
+const PAGE_SIZE = 25;
+
+/* =====================================================================
+ * Utils
+ * =================================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const r2 = (n) => Math.round(n * 100) / 100;
+const pad2 = (n) => String(n).padStart(2, '0');
+const ymd = (d) => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+const parseYmd = (s) => new Date(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
+const addDays = (s, n) => { const d = parseYmd(s); d.setDate(d.getDate() + n); return ymd(d); };
+const monthOf = (s) => s.slice(0, 7);
+const addMonths = (ym, n) => { const d = new Date(+ym.slice(0, 4), +ym.slice(5, 7) - 1 + n, 1); return d.getFullYear() + '-' + pad2(d.getMonth() + 1); };
+const monthEnd = (ym) => { const d = new Date(+ym.slice(0, 4), +ym.slice(5, 7), 0); return ymd(d); };
+const monthsBetween = (a, b) => { const out = []; let m = a; while (m <= b && out.length < 240) { out.push(m); m = addMonths(m, 1); } return out; };
+const daysBetween = (a, b) => Math.round((parseYmd(b) - parseYmd(a)) / 86400000) + 1;
+
+function money(n, opts = {}) {
+  const v = Number(n) || 0;
+  const a = Math.abs(v);
+  const s = a.toLocaleString('th-TH', { minimumFractionDigits: opts.dec || Math.round(a * 100) % 100 ? 2 : 0, maximumFractionDigits: 2 });
+  const sign = v < 0 ? '−' : (opts.sign && v > 0 ? '+' : '');
+  return sign + '฿' + s;
+}
+function moneyShort(n) {
+  const v = Math.abs(n);
+  if (v >= 1e6) return (n / 1e6).toFixed(v >= 1e7 ? 0 : 1) + 'M';
+  if (v >= 1e3) return (n / 1e3).toFixed(v >= 1e4 ? 0 : 1) + 'k';
+  return String(Math.round(n));
+}
+const pct = (n, d = 0) => (n == null || !isFinite(n)) ? '–' : (n * 100).toFixed(d) + '%';
+function thMonth(ym, short) {
+  const d = new Date(+ym.slice(0, 4), +ym.slice(5, 7) - 1, 1);
+  return d.toLocaleDateString('th-TH', short ? { month: 'short', year: '2-digit' } : { month: 'long', year: 'numeric' });
+}
+function thDate(s, withYear) {
+  return parseYmd(s).toLocaleDateString('th-TH', withYear ? { day: 'numeric', month: 'short', year: '2-digit' } : { weekday: 'short', day: 'numeric', month: 'short' });
+}
+function change(cur, prev) {
+  if (!prev) return cur ? { pct: null, dir: 'up' } : { pct: 0, dir: 'flat' };
+  const p = (cur - prev) / Math.abs(prev);
+  return { pct: p, dir: Math.abs(p) < 0.03 ? 'flat' : p > 0 ? 'up' : 'down' };
+}
+/** chip แสดงการเปลี่ยนแปลง (goodWhenUp = ตัวเลขขึ้นแล้วดี เช่น รายรับ) */
+function deltaChip(cur, prev, goodWhenUp) {
+  const c = change(cur, prev);
+  if (c.dir === 'flat') return `<span class="chip chip-flat">ทรงตัว</span>`;
+  const good = (c.dir === 'up') === !!goodWhenUp;
+  const cls = good ? 'chip-down' : 'chip-up';
+  const arrow = c.dir === 'up' ? 'arrow-up-right' : 'arrow-down-right';
+  const txt = c.pct == null ? 'ใหม่' : Math.abs(c.pct * 100).toFixed(0) + '%';
+  return `<span class="chip ${cls}"><i data-lucide="${arrow}" class="!w-3 !h-3"></i>${txt}</span>`;
+}
+const icons = () => { if (window.lucide) lucide.createIcons(); };
+const cssColor = (v, a = 1) => `rgb(${getComputedStyle(document.documentElement).getPropertyValue('--' + v).trim()} / ${a})`;
+const tint = (hex, a) => hex + Math.round(a * 255).toString(16).padStart(2, '0');
+
+let toastT;
+function toast(msg, kind) {
+  const t = $('#toast');
+  const ic = kind === 'error' ? 'circle-alert' : 'circle-check';
+  t.innerHTML = `<i data-lucide="${ic}"></i><span>${esc(msg)}</span>`;
+  t.classList.remove('hidden');
+  icons();
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.classList.add('hidden'), kind === 'error' ? 5000 : 2600);
+}
+
+/* =====================================================================
+ * Demo API (เปิดไฟล์นอก Apps Script)
+ * =================================================================== */
+const IS_GAS = typeof google !== 'undefined' && google.script && google.script.run;
+
+const Demo = (() => {
+  const KEY = 'moneypro_demo_v1';
+  let db = null;
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} };
+  const id = (p) => p + '-' + Math.random().toString(36).slice(2, 12).toUpperCase();
+  const today = () => ymd(new Date());
+
+  function seed() {
+    const cats = [
+      ['food', 'อาหารและเครื่องดื่ม', 'expense', 'utensils', '#F97316', 9000, 'need'],
+      ['housing', 'ที่พักและสาธารณูปโภค', 'expense', 'home', '#4F46E5', 0, 'need'],
+      ['transport', 'เดินทาง', 'expense', 'car', '#0EA5E9', 2500, 'need'],
+      ['bills', 'บิลและค่าสมาชิก', 'expense', 'receipt', '#14B8A6', 0, 'need'],
+      ['health', 'สุขภาพ', 'expense', 'heart-pulse', '#EF4444', 0, 'need'],
+      ['shopping', 'ช้อปปิ้ง', 'expense', 'shopping-bag', '#EC4899', 3000, 'want'],
+      ['entertainment', 'บันเทิงและท่องเที่ยว', 'expense', 'clapperboard', '#A855F7', 2500, 'want'],
+      ['education', 'การศึกษาและพัฒนาตนเอง', 'expense', 'graduation-cap', '#EAB308', 0, 'want'],
+      ['other_exp', 'รายจ่ายอื่นๆ', 'expense', 'circle-ellipsis', '#64748B', 0, 'want'],
+      ['salary', 'เงินเดือน', 'income', 'briefcase', '#10B981', 0, 'income'],
+      ['bonus', 'โบนัส', 'income', 'award', '#22C55E', 0, 'income'],
+      ['side', 'รายได้เสริม', 'income', 'laptop', '#84CC16', 0, 'income'],
+      ['invest_inc', 'ดอกเบี้ย/เงินปันผล', 'income', 'trending-up', '#06B6D4', 0, 'income'],
+      ['other_inc', 'รายรับอื่นๆ', 'income', 'plus-circle', '#94A3B8', 0, 'income'],
+    ].map((c, i) => ({ id: c[0], name: c[1], type: c[2], icon: c[3], color: c[4], monthlyBudget: c[5], group: c[6], archived: false, sortOrder: i + 1 }));
+    const accounts = [
+      { id: 'acc_cash', name: 'เงินสด', type: 'cash', openingBalance: 12000, color: '#10B981', archived: false, sortOrder: 1 },
+      { id: 'acc_bank', name: 'กสิกรไทย', type: 'bank', openingBalance: 35000, color: '#4F46E5', archived: false, sortOrder: 2 },
+      { id: 'acc_save', name: 'ออมทรัพย์ดิจิทัล', type: 'saving', openingBalance: 85000, color: '#0EA5E9', archived: false, sortOrder: 3 },
+    ];
+    let s = 42;
+    const rnd = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+    const pick = (a) => a[Math.floor(rnd() * a.length)];
+    const tx = [];
+    const now = new Date();
+    const stamp = new Date().toISOString();
+    const add = (date, type, category, amount, note, account) => {
+      if (date > today()) return;
+      tx.push({ id: id('TX'), date, type, category, amount: Math.round(amount), note, account, createdAt: stamp, updatedAt: stamp, recurringId: '', attachment: '' });
+    };
+    for (let m = 7; m >= 0; m--) {
+      const base = new Date(now.getFullYear(), now.getMonth() - m, 1);
+      const ym = base.getFullYear() + '-' + pad2(base.getMonth() + 1);
+      const d = (n) => ym + '-' + pad2(Math.min(n, new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate()));
+      add(d(1), 'income', 'salary', 42000, 'เงินเดือน', 'acc_bank');
+      if (m % 3 === 1) add(d(14), 'income', 'side', 6000 + Math.round(rnd() * 4000), 'งานฟรีแลนซ์ออกแบบ', 'acc_bank');
+      if (m === 5) add(d(20), 'income', 'bonus', 30000, 'โบนัสกลางปี', 'acc_bank');
+      add(d(28), 'income', 'invest_inc', 180 + Math.round(rnd() * 120), 'ดอกเบี้ยออมทรัพย์', 'acc_save');
+      add(d(1), 'expense', 'housing', 9500, 'ค่าเช่าคอนโด', 'acc_bank');
+      add(d(8), 'expense', 'housing', 1100 + Math.round(rnd() * 900), 'ค่าไฟฟ้า', 'acc_bank');
+      add(d(5), 'expense', 'bills', 599, 'อินเทอร์เน็ตบ้าน', 'acc_bank');
+      add(d(12), 'expense', 'bills', 419, 'Netflix', 'acc_bank');
+      add(d(15), 'expense', 'bills', 899, 'ค่าโทรศัพท์', 'acc_bank');
+      const meals = 18 + Math.floor(rnd() * 10) + (m === 1 ? 10 : 0);
+      for (let i = 0; i < meals; i++) add(d(1 + Math.floor(rnd() * 28)), 'expense', 'food', 60 + rnd() * (rnd() < 0.15 ? 1200 : 320),
+        pick(['ข้าวกลางวัน', 'กาแฟ', 'GrabFood', 'ร้านอาหารญี่ปุ่น', 'ซูเปอร์มาร์เก็ต', 'ชาบู', 'ข้าวเย็น']), pick(['acc_cash', 'acc_bank', 'acc_bank', 'acc_bank']));
+      for (let i = 0; i < 10; i++) add(d(1 + Math.floor(rnd() * 28)), 'expense', 'transport', 30 + rnd() * 250, pick(['BTS', 'Grab', 'MRT', 'วินมอเตอร์ไซค์']), pick(['acc_cash', 'acc_bank']));
+      add(d(18), 'expense', 'transport', 1200, 'เติมน้ำมัน', 'acc_bank');
+      for (let i = 0; i < 2 + Math.floor(rnd() * 4); i++) add(d(1 + Math.floor(rnd() * 28)), 'expense', 'shopping', 250 + rnd() * (m === 2 ? 4500 : 1800),
+        pick(['Shopee', 'Lazada', 'Uniqlo', 'ของใช้ในบ้าน', 'Central']), 'acc_bank');
+      for (let i = 0; i < 1 + Math.floor(rnd() * 3); i++) add(d(1 + Math.floor(rnd() * 28)), 'expense', 'entertainment', 200 + rnd() * 1600,
+        pick(['ดูหนัง', 'คอนเสิร์ต', 'Steam', 'เที่ยวต่างจังหวัด']), 'acc_bank');
+      if (rnd() < 0.4) add(d(1 + Math.floor(rnd() * 28)), 'expense', 'health', 300 + rnd() * 1500, pick(['ร้านยา', 'คลินิกทันตกรรม', 'ฟิตเนส']), 'acc_bank');
+      if (rnd() < 0.3) add(d(1 + Math.floor(rnd() * 28)), 'expense', 'education', 400 + rnd() * 2000, pick(['คอร์สออนไลน์', 'หนังสือ']), 'acc_bank');
+    }
+    const lastOcc = (day) => { const t = today(), m = monthOf(t), c = m + '-' + pad2(day); return c <= t ? c : addMonths(m, -1) + '-' + pad2(day); };
+    const rec = [
+      { id: 'REC-RENT', type: 'expense', category: 'housing', account: 'acc_bank', amount: 9500, dayOfMonth: 1, note: 'ค่าเช่าคอนโด', active: true, startDate: '2024-01-01', lastRun: lastOcc(1), createdAt: stamp },
+      { id: 'REC-NET', type: 'expense', category: 'bills', account: 'acc_bank', amount: 599, dayOfMonth: 5, note: 'อินเทอร์เน็ตบ้าน', active: true, startDate: '2024-01-05', lastRun: lastOcc(5), createdAt: stamp },
+      { id: 'REC-SAL', type: 'income', category: 'salary', account: 'acc_bank', amount: 42000, dayOfMonth: 1, note: 'เงินเดือน', active: true, startDate: '2024-01-01', lastRun: lastOcc(1), createdAt: stamp },
+    ];
+    return { accounts, categories: cats, transactions: tx, recurring: rec, settings: { backupEnabled: false, lastBackup: '', lastBackupUrl: '', receiptFolderUrl: '' } };
+  }
+  const load = () => {
+    if (db) return db;
+    try { db = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
+    if (!db) { db = seed(); save(); }
+    return db;
+  };
+  const balances = () => {
+    const b = {};
+    load().accounts.forEach((a) => { b[a.id] = a.openingBalance; });
+    db.transactions.forEach((t) => { if (t.date <= today()) b[t.account] = r2((b[t.account] || 0) + (t.type === 'income' ? t.amount : -t.amount)); });
+    return b;
+  };
+  function validate(d) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date || '')) throw new Error('รูปแบบวันที่ไม่ถูกต้อง');
+    const cat = load().categories.find((c) => c.id === d.category);
+    if (!cat) throw new Error('ไม่พบหมวดหมู่ที่เลือก');
+    if (cat.type !== d.type) throw new Error('หมวดหมู่ไม่ตรงกับประเภทรายการ');
+    if (!db.accounts.find((a) => a.id === d.account)) throw new Error('ไม่พบบัญชีที่เลือก');
+    const amount = r2(Number(d.amount));
+    if (!(amount > 0)) throw new Error('จำนวนเงินต้องมากกว่า 0');
+    return { date: d.date, type: d.type, category: d.category, account: d.account, amount, note: String(d.note || '').slice(0, 500), attachment: d.attachment || '' };
+  }
+  const nextOcc = (after, day) => {
+    let y = +after.slice(0, 4), m = +after.slice(5, 7);
+    for (let i = 0; i < 3; i++) {
+      const c = y + '-' + pad2(m) + '-' + pad2(Math.min(day, new Date(y, m, 0).getDate()));
+      if (c > after) return c;
+      if (++m > 12) { m = 1; y++; }
+    }
+  };
+  function runRecurring() {
+    let n = 0;
+    load().recurring.filter((r) => r.active).forEach((r) => {
+      let last = r.lastRun || addDays(r.startDate, -1), next = nextOcc(last, r.dayOfMonth), g = 0;
+      while (next && next <= today() && g++ < 24) {
+        const s = new Date().toISOString();
+        db.transactions.push({ id: id('TX'), date: next, type: r.type, category: r.category, account: r.account, amount: r.amount, note: r.note, createdAt: s, updatedAt: s, recurringId: r.id, attachment: '' });
+        last = next; next = nextOcc(last, r.dayOfMonth); n++;
+      }
+      r.lastRun = last;
+    });
+    save();
+    return n;
+  }
+  const api = {
+    bootstrap() {
+      const n = runRecurring();
+      const d = load();
+      return { today: today(), accounts: d.accounts, categories: d.categories, recurring: d.recurring, settings: d.settings,
+        transactions: d.transactions, balances: balances(), recurringGenerated: n };
+    },
+    addTransaction(x) { const c = validate(x), s = new Date().toISOString(); const t = { id: id('TX'), ...c, createdAt: s, updatedAt: s, recurringId: '' }; db.transactions.push(t); save(); return t; },
+    updateTransaction(x) { const c = validate(x), i = db.transactions.findIndex((t) => t.id === x.id); if (i < 0) throw new Error('ไม่พบรายการ'); Object.assign(db.transactions[i], c, { updatedAt: new Date().toISOString() }); save(); return db.transactions[i]; },
+    deleteTransaction(tid) { db.transactions = db.transactions.filter((t) => t.id !== tid); save(); return { ok: true }; },
+    saveAccount(a) {
+      if (!String(a.name || '').trim()) throw new Error('กรุณาตั้งชื่อบัญชี');
+      const clean = { name: a.name.trim(), type: a.type, openingBalance: r2(+a.openingBalance || 0), color: a.color, archived: !!a.archived };
+      if (a.id) Object.assign(db.accounts.find((x) => x.id === a.id), clean);
+      else db.accounts.push({ id: id('ACC'), ...clean, sortOrder: db.accounts.length + 1 });
+      save(); return clean;
+    },
+    deleteAccount(aid) {
+      if (!db.accounts.some((a) => !a.archived && a.id !== aid)) throw new Error('ต้องมีบัญชีที่ใช้งานอยู่อย่างน้อย 1 บัญชี');
+      if (db.transactions.some((t) => t.account === aid)) { db.accounts.find((a) => a.id === aid).archived = true; save(); return { archived: true }; }
+      db.accounts = db.accounts.filter((a) => a.id !== aid); save(); return { deleted: true };
+    },
+    saveCategory(c) {
+      if (!String(c.name || '').trim()) throw new Error('กรุณาตั้งชื่อหมวดหมู่');
+      const clean = { name: c.name.trim(), type: c.type, icon: c.icon, color: c.color, monthlyBudget: Math.max(0, r2(+c.monthlyBudget || 0)),
+        group: c.type === 'income' ? 'income' : (c.group === 'need' ? 'need' : 'want'), archived: !!c.archived };
+      if (c.id) Object.assign(db.categories.find((x) => x.id === c.id), clean);
+      else db.categories.push({ id: id('CAT'), ...clean, sortOrder: db.categories.length + 1 });
+      save(); return clean;
+    },
+    setBudget(cid, amt) { db.categories.find((c) => c.id === cid).monthlyBudget = Math.max(0, r2(+amt || 0)); save(); return true; },
+    deleteCategory(cid) {
+      if (db.transactions.some((t) => t.category === cid)) { db.categories.find((c) => c.id === cid).archived = true; save(); return { archived: true }; }
+      db.categories = db.categories.filter((c) => c.id !== cid); save(); return { deleted: true };
+    },
+    saveRecurring(r) {
+      const c = validate({ ...r, date: r.startDate });
+      const day = Math.round(+r.dayOfMonth);
+      if (!(day >= 1 && day <= 31)) throw new Error('วันที่ของเดือนต้องอยู่ระหว่าง 1–31');
+      const clean = { type: c.type, category: c.category, account: c.account, amount: c.amount, note: c.note, dayOfMonth: day, active: r.active !== false, startDate: c.date };
+      if (r.id) Object.assign(db.recurring.find((x) => x.id === r.id), clean);
+      else db.recurring.push({ id: id('REC'), ...clean, lastRun: '', createdAt: new Date().toISOString() });
+      save(); runRecurring(); return clean;
+    },
+    deleteRecurring(rid) { db.recurring = db.recurring.filter((r) => r.id !== rid); save(); return { ok: true }; },
+    runRecurringNow() { return runRecurring(); },
+    saveSettings(s) { Object.assign(db.settings, s); save(); return db.settings; },
+    backupNow() { throw new Error('การสำรองข้อมูลใช้ได้หลัง Deploy บน Google Apps Script'); },
+    uploadReceipt() { throw new Error('การอ่านสลิปใช้ได้หลัง Deploy บน Google Apps Script (ใช้ OCR ของ Google Drive)'); },
+    discardReceipt() { return { ok: true }; },
+  };
+  return api;
+})();
+
+function api(fn, ...args) {
+  if (IS_GAS) {
+    return new Promise((resolve, reject) => {
+      google.script.run.withSuccessHandler(resolve)
+        .withFailureHandler((e) => reject(e instanceof Error ? e : new Error(String((e && e.message) || e))))[fn](...args);
+    });
+  }
+  return new Promise((resolve, reject) => setTimeout(() => { try { resolve(Demo[fn](...args)); } catch (e) { reject(e); } }, 180));
+}
+
+/* =====================================================================
+ * State
+ * =================================================================== */
+const S = {
+  today: ymd(new Date()),
+  accounts: [], categories: [], recurring: [], settings: {},
+  tx: [], balances: {},
+  catById: {}, accById: {}, monthly: {},
+  view: 'overview',
+  periodKey: '',
+  custom: { from: '', to: '' },
+  filters: { q: '', type: 'all', account: '', category: '' },
+  page: 1,
+  matrixMonths: 6,
+  focusCat: '',
+  charts: {},
+};
+
+function indexData() {
+  S.catById = {}; S.categories.forEach((c) => { S.catById[c.id] = c; });
+  S.accById = {}; S.accounts.forEach((a) => { S.accById[a.id] = a; });
+  // ยอดรวมรายเดือน ใช้ในการเปรียบเทียบและค่าเฉลี่ย
+  const m = {};
+  S.tx.forEach((t) => {
+    const k = monthOf(t.date);
+    const row = m[k] || (m[k] = { income: 0, expense: 0, byCat: {} });
+    row[t.type] += t.amount;
+    row.byCat[t.category] = (row.byCat[t.category] || 0) + t.amount;
+  });
+  S.monthly = m;
+}
+const cat = (id) => S.catById[id] || { id, name: 'ไม่ระบุหมวด', icon: 'tag', color: '#64748B', type: 'expense', group: 'want', monthlyBudget: 0 };
+const acc = (id) => S.accById[id] || { id, name: 'ไม่ระบุบัญชี', type: 'bank', color: '#64748B' };
+const activeCats = (type) => S.categories.filter((c) => !c.archived && (!type || c.type === type)).sort((a, b) => a.sortOrder - b.sortOrder);
+const activeAccounts = () => S.accounts.filter((a) => !a.archived).sort((a, b) => a.sortOrder - b.sortOrder);
+
+/* =====================================================================
+ * Period
+ * =================================================================== */
+function periodOptions() {
+  const cur = monthOf(S.today);
+  const opts = [];
+  for (let i = 0; i < 18; i++) {
+    const m = addMonths(cur, -i);
+    opts.push([`m:${m}`, (i === 0 ? 'เดือนนี้ ' : '') + thMonth(m)]);
+  }
+  opts.splice(2, 0, ['last3', '3 เดือนล่าสุด'], ['last6', '6 เดือนล่าสุด'], ['last12', '12 เดือนล่าสุด'], ['ytd', 'ปีนี้'], ['custom', 'กำหนดช่วงเอง…']);
+  return opts;
+}
+
+/** ช่วงเวลาปัจจุบัน + ช่วงก่อนหน้าที่ยาวเท่ากัน */
+function period() {
+  const key = S.periodKey;
+  const cur = monthOf(S.today);
+  let from, to, label, prevFrom, prevTo, months;
+  if (key.startsWith('m:')) {
+    const m = key.slice(2);
+    from = m + '-01'; to = monthEnd(m); label = thMonth(m);
+    prevFrom = addMonths(m, -1) + '-01'; prevTo = monthEnd(addMonths(m, -1));
+  } else if (/^last(\d+)$/.test(key)) {
+    const n = +key.slice(4);
+    from = addMonths(cur, -(n - 1)) + '-01'; to = monthEnd(cur); label = n + ' เดือนล่าสุด';
+    prevFrom = addMonths(cur, -(2 * n - 1)) + '-01'; prevTo = monthEnd(addMonths(cur, -n));
+  } else if (key === 'ytd') {
+    const y = S.today.slice(0, 4);
+    from = y + '-01-01'; to = S.today; label = 'ปี ' + (+y + 543);
+    prevFrom = (+y - 1) + '-01-01'; prevTo = (+y - 1) + S.today.slice(4);
+  } else {
+    from = S.custom.from || addDays(S.today, -29); to = S.custom.to || S.today;
+    if (from > to) [from, to] = [to, from];
+    label = thDate(from, true) + ' – ' + thDate(to, true);
+    const len = daysBetween(from, to);
+    prevTo = addDays(from, -1); prevFrom = addDays(prevTo, -(len - 1));
+  }
+  months = monthsBetween(monthOf(from), monthOf(to));
+  return { from, to, label, prevFrom, prevTo, months, isMonth: key.startsWith('m:'), endMonth: monthOf(to) };
+}
+
+const inRange = (from, to) => S.tx.filter((t) => t.date >= from && t.date <= to);
+
+function summarize(list) {
+  const s = { income: 0, expense: 0, byCat: {}, count: list.length, need: 0, want: 0 };
+  list.forEach((t) => {
+    s[t.type] += t.amount;
+    s.byCat[t.category] = (s.byCat[t.category] || 0) + t.amount;
+    if (t.type === 'expense') s[cat(t.category).group === 'need' ? 'need' : 'want'] += t.amount;
+  });
+  s.net = s.income - s.expense;
+  s.rate = s.income > 0 ? s.net / s.income : null;
+  return s;
+}
+
+/** ค่าเฉลี่ยต่อเดือนของหมวดใน n เดือนก่อนเดือน beforeMonth (นับเฉพาะเดือนที่มีข้อมูล) */
+function monthlyAvg(catId, beforeMonth, n = 3) {
+  let total = 0, cnt = 0;
+  for (let i = 1; i <= n; i++) {
+    const m = S.monthly[addMonths(beforeMonth, -i)];
+    if (m) { total += m.byCat[catId] || 0; cnt++; }
+  }
+  return cnt ? Math.round(total / cnt) : null;
+}
+
+/* =====================================================================
+ * Insights — คำแนะนำที่คำนวณจากข้อมูลจริง
+ * =================================================================== */
+function buildInsights(P, cur, prev) {
+  const out = [];
+  const nM = P.months.length;
+  const perM = (v) => v / nM;
+
+  if (cur.income === 0 && cur.expense === 0) return [{ lv: 'info', t: 'ยังไม่มีรายการในช่วงนี้', d: 'บันทึกรายรับรายจ่ายเพื่อดูการวิเคราะห์' }];
+
+  // 1) อัตราการออม
+  if (cur.income > 0) {
+    const target = cur.income * RULE.save;
+    if (cur.net < 0) out.push({ lv: 'bad', t: `รายจ่ายเกินรายรับ ${money(-cur.net)}`, d: `ต้องลดรายจ่ายอย่างน้อย ${money(perM(-cur.net))} ต่อเดือนเพื่อให้สมดุล และอีก ${money(perM(target))} ต่อเดือนเพื่อเก็บออมได้ 20%` });
+    else if (cur.rate < RULE.save) out.push({ lv: 'warn', t: `ออมได้ ${pct(cur.rate)} ของรายรับ`, d: `เกณฑ์แนะนำคือ 20% ควรออมเพิ่มอีกประมาณ ${money(perM(target - cur.net))} ต่อเดือน` });
+    else out.push({ lv: 'good', t: `ออมได้ ${pct(cur.rate)} ของรายรับ`, d: `สูงกว่าเกณฑ์ 20% แล้ว เงินส่วนเกิน ${money(perM(cur.net - target))} ต่อเดือนนำไปลงทุนหรือเก็บเป็นเงินสำรองฉุกเฉินได้` });
+  } else {
+    out.push({ lv: 'warn', t: 'ยังไม่มีรายรับในช่วงนี้', d: 'บันทึกรายรับด้วยเพื่อให้คำนวณสัดส่วนและอัตราการออมได้' });
+  }
+
+  // 2) กฎ 50/30/20
+  if (cur.income > 0) {
+    const needR = cur.need / cur.income, wantR = cur.want / cur.income;
+    if (needR > RULE.need) out.push({ lv: 'warn', t: `ค่าใช้จ่ายจำเป็น ${pct(needR)} ของรายรับ`, d: `เกินเกณฑ์ 50% อยู่ ${money(perM(cur.need - cur.income * RULE.need))} ต่อเดือน ลองทบทวนค่าที่พัก ค่าเดินทาง หรือแพ็กเกจรายเดือน` });
+    if (wantR > RULE.want) out.push({ lv: 'warn', t: `ค่าใช้จ่ายตามใจ ${pct(wantR)} ของรายรับ`, d: `เกินเกณฑ์ 30% อยู่ ${money(perM(cur.want - cur.income * RULE.want))} ต่อเดือน ตัดส่วนนี้จะเพิ่มเงินออมได้ทันที` });
+  }
+
+  // 3) หมวดที่เปลี่ยนแปลงผิดปกติเมื่อเทียบค่าเฉลี่ย 3 เดือนก่อนหน้า
+  const firstM = P.months[0];
+  const changes = activeCats('expense').map((c) => {
+    const now = perM(cur.byCat[c.id] || 0);
+    const avg = monthlyAvg(c.id, firstM, 3);
+    return { c, now, avg, diff: avg == null ? 0 : now - avg };
+  }).filter((x) => x.avg != null && x.avg > 0);
+  changes.filter((x) => x.diff > Math.max(300, x.avg * 0.2)).sort((a, b) => b.diff - a.diff).slice(0, 3).forEach((x) => {
+    out.push({ lv: 'warn', cat: x.c.id, t: `${x.c.name} สูงกว่าปกติ ${pct(x.diff / x.avg)}`, d: `เฉลี่ย 3 เดือนก่อนอยู่ที่ ${money(x.avg)} ต่อเดือน ช่วงนี้ ${money(x.now)} ต่อเดือน ถ้าลดกลับมาระดับเดิมจะประหยัดได้ ${money(x.diff)} ต่อเดือน` });
+  });
+  changes.filter((x) => -x.diff > Math.max(300, x.avg * 0.2)).sort((a, b) => a.diff - b.diff).slice(0, 1).forEach((x) => {
+    out.push({ lv: 'good', cat: x.c.id, t: `${x.c.name} ลดลง ${pct(-x.diff / x.avg)}`, d: `ใช้น้อยกว่าค่าเฉลี่ย 3 เดือน ${money(-x.diff)} ต่อเดือน รักษาระดับนี้ไว้` });
+  });
+
+  // 4) งบประมาณ
+  activeCats('expense').filter((c) => c.monthlyBudget > 0).forEach((c) => {
+    const budget = c.monthlyBudget * nM, spent = cur.byCat[c.id] || 0;
+    if (spent > budget) out.push({ lv: 'bad', cat: c.id, t: `${c.name} เกินงบ ${money(spent - budget)}`, d: `ใช้ไป ${money(spent)} จากงบ ${money(budget)} (${pct(spent / budget)})` });
+    else if (spent >= budget * 0.8 && P.to >= S.today) out.push({ lv: 'warn', cat: c.id, t: `${c.name} ใช้งบไปแล้ว ${pct(spent / budget)}`, d: `เหลืออีก ${money(budget - spent)} สำหรับช่วงที่เหลือ` });
+  });
+
+  // 5) ค่าที่พักเกิน 30% ของรายรับ
+  const housing = cur.byCat.housing || 0;
+  if (cur.income > 0 && housing / cur.income > 0.3) {
+    out.push({ lv: 'info', cat: 'housing', t: `ค่าที่พัก ${pct(housing / cur.income)} ของรายรับ`, d: 'โดยทั่วไปไม่ควรเกิน 30% ถ้าสูงกว่านี้ต่อเนื่อง ลองพิจารณาทางเลือกที่ถูกลงเมื่อหมดสัญญา' });
+  }
+  const rank = { bad: 0, warn: 1, info: 2, good: 3 };
+  return out.sort((a, b) => rank[a.lv] - rank[b.lv]);
+}
+
+/** คำแนะนำสั้นสำหรับแต่ละหมวดในตารางสัดส่วน */
+function categoryAdvice(c, amountPerMonth, avg, incomePerMonth) {
+  if (c.monthlyBudget > 0 && amountPerMonth > c.monthlyBudget) return { lv: 'up', txt: `ลด ${money(amountPerMonth - c.monthlyBudget)} ให้อยู่ในงบ` };
+  if (avg != null && avg > 0 && amountPerMonth - avg > Math.max(300, avg * 0.2)) return { lv: 'up', txt: `ลด ${money(amountPerMonth - avg)} กลับสู่ค่าเฉลี่ย` };
+  if (c.group === 'want' && incomePerMonth > 0 && amountPerMonth / incomePerMonth > 0.12) return { lv: 'warn', txt: `สูงกว่า 12% ของรายรับ ลองตั้งงบ ${money(Math.round(incomePerMonth * 0.1 / 100) * 100)}` };
+  if (avg != null && avg > 0 && avg - amountPerMonth > Math.max(300, avg * 0.2)) return { lv: 'down', txt: 'ลดลงจากเดิม รักษาระดับนี้' };
+  return { lv: 'flat', txt: 'อยู่ในระดับปกติ' };
+}
+
+/* =====================================================================
+ * Charts
+ * =================================================================== */
+function chartBase() {
+  Chart.defaults.font.family = "'Anuphan', sans-serif";
+  Chart.defaults.color = cssColor('muted');
+  Chart.defaults.borderColor = cssColor('rule');
+}
+function makeChart(key, canvas, cfg) {
+  if (!window.Chart || !canvas) return;
+  if (S.charts[key]) S.charts[key].destroy();
+  chartBase();
+  S.charts[key] = new Chart(canvas, cfg);
+}
+const tooltipMoney = { callbacks: { label: (ctx) => ` ${ctx.dataset.label || ctx.label}: ${money(ctx.parsed.y ?? ctx.parsed)}` } };
+
+function cashflowChart(canvas, endMonth) {
+  const months = []; for (let i = 11; i >= 0; i--) months.push(addMonths(endMonth, -i));
+  const inc = months.map((m) => r2((S.monthly[m] || {}).income || 0));
+  const exp = months.map((m) => r2((S.monthly[m] || {}).expense || 0));
+  makeChart('cashflow', canvas, {
+    data: {
+      labels: months.map((m) => thMonth(m, true)),
+      datasets: [
+        { type: 'line', label: 'คงเหลือสุทธิ', data: inc.map((v, i) => r2(v - exp[i])), borderColor: cssColor('accent'), backgroundColor: cssColor('accent'), borderWidth: 2, pointRadius: 2.5, tension: 0.3, order: 0 },
+        { type: 'bar', label: 'รายรับ', data: inc, backgroundColor: cssColor('income', 0.8), borderRadius: 4, maxBarThickness: 18, order: 1 },
+        { type: 'bar', label: 'รายจ่าย', data: exp, backgroundColor: cssColor('expense', 0.75), borderRadius: 4, maxBarThickness: 18, order: 1 },
+      ],
+    },
+    options: {
+      maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      scales: { x: { grid: { display: false } }, y: { grid: { color: cssColor('rule', 0.7) }, border: { display: false }, ticks: { callback: moneyShort } } },
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, padding: 16 } }, tooltip: tooltipMoney },
+    },
+  });
+}
+
+function donutChart(canvas, byCat) {
+  const rows = activeCats('expense').map((c) => [c, byCat[c.id] || 0]).filter((x) => x[1] > 0).sort((a, b) => b[1] - a[1]);
+  makeChart('donut', canvas, {
+    type: 'doughnut',
+    data: { labels: rows.map((x) => x[0].name), datasets: [{ data: rows.map((x) => r2(x[1])), backgroundColor: rows.map((x) => x[0].color), borderColor: cssColor('surface'), borderWidth: 2 }] },
+    options: { maintainAspectRatio: false, cutout: '68%', plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${money(ctx.parsed)}` } } } },
+  });
+}
+
+function categoryTrendChart(canvas, catId, endMonth) {
+  const c = cat(catId);
+  const months = []; for (let i = 11; i >= 0; i--) months.push(addMonths(endMonth, -i));
+  const data = months.map((m) => r2(((S.monthly[m] || {}).byCat || {})[catId] || 0));
+  const withData = months.filter((m) => S.monthly[m]).length || 1;
+  const avg = Math.round(data.reduce((a, b) => a + b, 0) / withData);
+  const ds = [
+    { type: 'bar', label: c.name, data, backgroundColor: tint(c.color, 0.75), borderRadius: 4, maxBarThickness: 22 },
+    { type: 'line', label: 'ค่าเฉลี่ย 12 เดือน', data: data.map(() => r2(avg)), borderColor: cssColor('ink', 0.5), borderDash: [5, 4], borderWidth: 1.5, pointRadius: 0 },
+  ];
+  if (c.monthlyBudget > 0) ds.push({ type: 'line', label: 'งบต่อเดือน', data: data.map(() => c.monthlyBudget), borderColor: cssColor('warn'), borderWidth: 1.5, pointRadius: 0 });
+  makeChart('catTrend', canvas, {
+    data: { labels: months.map((m) => thMonth(m, true)), datasets: ds },
+    options: {
+      maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: cssColor('rule', 0.7) }, border: { display: false }, ticks: { callback: moneyShort } } },
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, padding: 14 } }, tooltip: tooltipMoney },
+    },
+  });
+}
+
+/* =====================================================================
+ * Shared snippets
+ * =================================================================== */
+const catIcon = (c, size = '') => `<span class="cat-ico ${size}" style="background:${tint(c.color, 0.14)};color:${c.color}"><i data-lucide="${esc(c.icon || 'tag')}"></i></span>`;
+const emptyState = (icon, title, sub, action) => `
+  <div class="py-14 text-center">
+    <i data-lucide="${icon}" class="inline-block !w-8 !h-8 text-muted"></i>
+    <p class="mt-3 font-medium">${title}</p>
+    ${sub ? `<p class="sub mt-1">${sub}</p>` : ''}
+    ${action || ''}
+  </div>`;
+const attachLink = (t) => t.attachment ? `<a href="https://drive.google.com/file/d/${esc(t.attachment)}/view" target="_blank" rel="noopener" class="inline-flex text-muted hover:text-accent align-middle ml-1" title="ดูสลิป/ใบเสร็จ" aria-label="ดูสลิปหรือใบเสร็จ"><i data-lucide="paperclip" class="!w-3.5 !h-3.5"></i></a>` : '';
+
+function txRow(t) {
+  const c = cat(t.category), a = acc(t.account);
+  const inc = t.type === 'income';
+  return `<tr>
+    <td class="num text-sm text-muted whitespace-nowrap">${thDate(t.date)}</td>
+    <td><div class="flex items-center gap-3 min-w-0">${catIcon(c)}<div class="min-w-0"><p class="truncate max-w-[22rem]">${esc(t.note || c.name)}${attachLink(t)}</p><p class="sub truncate">${esc(c.name)}${t.recurringId ? ' (ประจำ)' : ''}</p></div></div></td>
+    <td class="text-sm text-muted whitespace-nowrap">${esc(a.name)}</td>
+    <td class="r num font-medium whitespace-nowrap ${inc ? 'text-income' : ''}">${inc ? '+' : '−'}${money(t.amount).replace('−', '')}</td>
+    <td class="r no-print whitespace-nowrap">
+      <button class="icon-btn inline-grid" data-edit-tx="${esc(t.id)}" aria-label="แก้ไข"><i data-lucide="pencil"></i></button>
+      <button class="icon-btn inline-grid" data-del-tx="${esc(t.id)}" aria-label="ลบ"><i data-lucide="trash-2"></i></button>
+    </td></tr>`;
+}
+function txItem(t) {
+  const c = cat(t.category), inc = t.type === 'income';
+  return `<button class="w-full flex items-center gap-3 py-3 text-left" data-edit-tx="${esc(t.id)}">
+    ${catIcon(c)}
+    <span class="min-w-0 flex-1"><span class="block truncate">${esc(t.note || c.name)}</span><span class="sub block truncate">${esc(c.name)}, ${esc(acc(t.account).name)}</span></span>
+    <span class="num font-medium whitespace-nowrap ${inc ? 'text-income' : ''}">${inc ? '+' : '−'}${money(t.amount).replace('−', '')}${t.attachment ? ' <i data-lucide="paperclip" class="inline !w-3 !h-3 text-muted"></i>' : ''}</span>
+  </button>`;
+}
+function txListMobile(list) {
+  const groups = {};
+  list.forEach((t) => (groups[t.date] = groups[t.date] || []).push(t));
+  return Object.keys(groups).sort().reverse().map((d) => {
+    const net = groups[d].reduce((s, t) => s + (t.type === 'income' ? t.amount : -t.amount), 0);
+    return `<div class="pt-3"><div class="flex justify-between text-xs text-muted pb-1 border-b border-rule"><span>${thDate(d)}</span><span class="num">${money(net, { sign: true })}</span></div>
+      <div class="divide-y divide-rule/70">${groups[d].map(txItem).join('')}</div></div>`;
+  }).join('');
+}
+
+/* =====================================================================
+ * View: Overview
+ * =================================================================== */
+function renderOverview() {
+  const P = period();
+  const cur = summarize(inRange(P.from, P.to));
+  const prev = summarize(inRange(P.prevFrom, P.prevTo));
+  const insights = buildInsights(P, cur, prev);
+  const netWorth = Object.keys(S.balances).reduce((s, k) => s + (S.balances[k] || 0), 0);
+  const recent = inRange('0000-01-01', S.today).sort((a, b) => (b.date + b.createdAt).localeCompare(a.date + a.createdAt)).slice(0, 6);
+  const topCats = activeCats('expense').map((c) => [c, cur.byCat[c.id] || 0]).filter((x) => x[1] > 0).sort((a, b) => b[1] - a[1]);
+
+  const kpi = (label, val, chip, extra = '') => `
+    <div class="px-5 py-4 min-w-0">
+      <p class="sub">${label}</p>
+      <p class="num text-2xl md:text-[1.7rem] font-semibold tracking-tight mt-1 truncate ${extra}">${val}</p>
+      <div class="mt-1.5 flex items-center gap-2 text-xs text-muted">${chip}<span class="hidden sm:inline">เทียบช่วงก่อนหน้า</span></div>
+    </div>`;
+
+  $('#view-overview').innerHTML = `
+  <div class="space-y-5">
+    <p class="sub">${esc(P.label)} (${thDate(P.from, true)} – ${thDate(P.to, true)})</p>
+
+    <div class="panel overflow-hidden grid grid-cols-2 lg:grid-cols-4 gap-px !bg-rule [&>*]:bg-surface">
+      ${kpi('รายรับ', money(cur.income), deltaChip(cur.income, prev.income, true))}
+      ${kpi('รายจ่าย', money(cur.expense), deltaChip(cur.expense, prev.expense, false))}
+      ${kpi('คงเหลือสุทธิ', money(cur.net), deltaChip(cur.net, prev.net, true), cur.net < 0 ? 'text-expense' : '')}
+      ${kpi('อัตราการออม', pct(cur.rate, 1), prev.rate == null || cur.rate == null ? '<span class="chip chip-flat">–</span>' : deltaChip(cur.rate, prev.rate, true), cur.rate != null && cur.rate < 0 ? 'text-expense' : '')}
+    </div>
+
+    ${allocationPanel(cur, P)}
+
+    <div class="grid lg:grid-cols-5 gap-5">
+      <div class="panel lg:col-span-3">
+        <div class="panel-h"><h2>สิ่งที่ควรรู้</h2><a href="#analysis" class="ml-auto text-sm text-accent hover:underline">ดูการวิเคราะห์ทั้งหมด</a></div>
+        <div class="panel-b !pt-0">${insights.slice(0, 4).map(insightRow).join('')}</div>
+      </div>
+      <div class="panel lg:col-span-2">
+        <div class="panel-h"><h2>ยอดเงินในบัญชี</h2><span class="ml-auto num font-semibold">${money(netWorth)}</span></div>
+        <div class="panel-b !pt-1 divide-y divide-rule/70">
+          ${activeAccounts().map((a) => `
+            <div class="flex items-center gap-3 py-2.5">
+              <span class="cat-ico" style="background:${tint(a.color, 0.14)};color:${a.color}"><i data-lucide="${ACCOUNT_ICONS[a.type] || 'wallet'}"></i></span>
+              <span class="flex-1 min-w-0"><span class="block truncate">${esc(a.name)}</span><span class="sub">${ACCOUNT_TYPES[a.type] || ''}</span></span>
+              <span class="num font-medium ${(S.balances[a.id] || 0) < 0 ? 'text-expense' : ''}">${money(S.balances[a.id] || 0)}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-5 gap-5">
+      <div class="panel lg:col-span-3">
+        <div class="panel-h"><h2>กระแสเงินสด 12 เดือน</h2><span class="sub ml-auto">ถึง ${thMonth(P.endMonth, true)}</span></div>
+        <div class="panel-b"><div class="h-72"><canvas id="cCashflow" aria-label="กราฟรายรับรายจ่าย 12 เดือน"></canvas></div></div>
+      </div>
+      <div class="panel lg:col-span-2">
+        <div class="panel-h"><h2>รายจ่ายตามหมวด</h2></div>
+        <div class="panel-b">
+          ${topCats.length ? `
+          <div class="relative h-44"><canvas id="cDonut" aria-label="สัดส่วนรายจ่ายตามหมวด"></canvas>
+            <div class="absolute inset-0 grid place-items-center pointer-events-none text-center"><div><p class="sub text-xs">รวม</p><p class="num font-semibold">${money(cur.expense)}</p></div></div></div>
+          <div class="mt-3 space-y-2">
+            ${topCats.slice(0, 5).map(([c, v]) => `
+              <button class="w-full text-left" data-focus-cat="${c.id}">
+                <div class="flex items-center gap-2 text-sm"><span class="w-2.5 h-2.5 rounded-full" style="background:${c.color}"></span><span class="flex-1 truncate">${esc(c.name)}</span><span class="num text-muted">${pct(v / cur.expense)}</span><span class="num font-medium w-24 text-right">${money(v)}</span></div>
+              </button>`).join('')}
+          </div>` : emptyState('chart-pie', 'ยังไม่มีรายจ่ายในช่วงนี้')}
+        </div>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-5 gap-5">
+      <div class="panel lg:col-span-3">
+        <div class="panel-h"><h2>รายการล่าสุด</h2><a href="#transactions" class="ml-auto text-sm text-accent hover:underline">ดูทั้งหมด</a></div>
+        <div class="panel-b !pt-0">${recent.length ? `<div class="divide-y divide-rule/70">${recent.map(txItem).join('')}</div>` : emptyState('inbox', 'ยังไม่มีรายการ', 'เริ่มจากบันทึกรายจ่ายหรือแนบสลิปรายการแรก', '<button class="btn btn-primary mt-4" data-action="add"><i data-lucide="plus"></i>บันทึกรายการ</button>')}</div>
+      </div>
+      <div class="panel lg:col-span-2">
+        <div class="panel-h"><h2>งบประมาณ</h2><a href="#budgets" class="ml-auto text-sm text-accent hover:underline">จัดการ</a></div>
+        <div class="panel-b !pt-1">${budgetRows(cur, P, 5) || emptyState('target', 'ยังไม่ได้ตั้งงบ', 'ตั้งงบรายเดือนให้หมวดที่อยากคุม', '<a href="#budgets" class="btn btn-ghost mt-4">ตั้งงบประมาณ</a>')}</div>
+      </div>
+    </div>
+  </div>`;
+  cashflowChart($('#cCashflow'), P.endMonth);
+  if (topCats.length) donutChart($('#cDonut'), cur.byCat);
+}
+
+function insightRow(i) {
+  return `<div class="insight ${i.lv}"><div>
+    <p class="font-medium">${esc(i.t)}</p><p class="sub mt-0.5">${esc(i.d)}</p>
+    ${i.cat ? `<button class="text-xs text-accent mt-1 hover:underline" data-focus-cat="${esc(i.cat)}">วิเคราะห์หมวดนี้</button>` : ''}
+  </div></div>`;
+}
+
+/** แถบจัดสรรรายได้: จำเป็น / ตามใจ / เหลือเก็บ เทียบเกณฑ์ 50/30/20 */
+function allocationPanel(cur, P) {
+  if (cur.income <= 0) {
+    return `<div class="panel"><div class="panel-h"><h2>การจัดสรรรายได้</h2></div><div class="panel-b sub">บันทึกรายรับในช่วงนี้เพื่อดูว่าเงินแต่ละบาทถูกใช้ไปกับอะไร</div></div>`;
+  }
+  const scale = Math.max(cur.income, cur.expense);
+  const w = (v) => (Math.max(0, v) / scale * 100).toFixed(2) + '%';
+  const saved = Math.max(0, cur.net), over = Math.max(0, -cur.net);
+  const lbl = (v) => (v / scale > 0.09 ? pct(v / cur.income) : '');
+  const markPos = (r) => (cur.income * r / scale * 100).toFixed(2) + '%';
+  const row = (color, name, v, target, note) => `
+    <div class="flex items-start gap-3">
+      <span class="w-3 h-3 rounded-sm mt-1.5 shrink-0" style="background:${color}"></span>
+      <div class="flex-1 min-w-0"><p class="font-medium">${name}</p><p class="sub">${note}</p></div>
+      <div class="text-right"><p class="num font-semibold">${money(v)}</p><p class="num sub">${pct(v / cur.income)} <span class="text-xs">(เป้า ${target})</span></p></div>
+    </div>`;
+  return `
+  <div class="panel">
+    <div class="panel-h"><h2>เงินรายรับถูกใช้ไปอย่างไร</h2><span class="sub ml-auto hidden sm:inline">เทียบเกณฑ์ 50/30/20</span></div>
+    <div class="panel-b">
+      <div class="alloc" role="img" aria-label="จำเป็น ${pct(cur.need / cur.income)} ตามใจ ${pct(cur.want / cur.income)} เหลือเก็บ ${pct(saved / cur.income)}">
+        <div style="width:${w(cur.need)};background:rgb(var(--need))">${lbl(cur.need)}</div>
+        <div style="width:${w(cur.want)};background:rgb(var(--want))">${lbl(cur.want)}</div>
+        ${saved > 0 ? `<div style="width:${w(saved)};background:rgb(var(--income))">${lbl(saved)}</div>` : ''}
+      </div>
+      <div class="alloc-marks" aria-hidden="true">
+        <span style="left:${markPos(0.5)}">50%</span><span style="left:${markPos(0.8)}">80%</span>${over > 0 ? `<span style="left:${markPos(1)}">รายรับ</span>` : ''}
+      </div>
+      <div class="grid md:grid-cols-3 gap-4 mt-3">
+        ${row('rgb(var(--need))', 'จำเป็น', cur.need, '≤ 50%', 'ที่พัก อาหาร เดินทาง บิล สุขภาพ')}
+        ${row('rgb(var(--want))', 'ตามใจ', cur.want, '≤ 30%', 'ช้อปปิ้ง บันเทิง และอื่นๆ')}
+        ${over > 0 ? row('rgb(var(--expense))', 'ใช้เกินรายรับ', over, '0%', 'ส่วนที่ใช้เงินเก็บหรือเครดิต')
+          : row('rgb(var(--income))', 'เหลือเก็บ', saved, '≥ 20%', 'เงินออมและลงทุน')}
+      </div>
+    </div>
+  </div>`;
+}
+
+function budgetRows(cur, P, limit) {
+  const nM = P.months.length;
+  const rows = activeCats('expense').filter((c) => c.monthlyBudget > 0)
+    .map((c) => ({ c, spent: cur.byCat[c.id] || 0, budget: c.monthlyBudget * nM }))
+    .sort((a, b) => b.spent / b.budget - a.spent / a.budget).slice(0, limit || 99);
+  if (!rows.length) return '';
+  return rows.map(({ c, spent, budget }) => {
+    const r = spent / budget;
+    const color = r > 1 ? 'rgb(var(--expense))' : r >= 0.8 ? 'rgb(var(--warn))' : c.color;
+    return `<div class="py-2.5">
+      <div class="flex items-center gap-2 text-sm mb-1.5"><span class="flex-1 truncate">${esc(c.name)}</span>
+        <span class="num ${r > 1 ? 'text-expense font-medium' : 'text-muted'}">${money(spent)} / ${money(budget)}</span></div>
+      <div class="bar"><span style="width:${Math.min(100, r * 100).toFixed(1)}%;background:${color}"></span></div>
+    </div>`;
+  }).join('');
+}
+
+/* =====================================================================
+ * View: Analysis
+ * =================================================================== */
+function renderAnalysis() {
+  const P = period();
+  const nM = P.months.length;
+  const cur = summarize(inRange(P.from, P.to));
+  const prev = summarize(inRange(P.prevFrom, P.prevTo));
+  const insights = buildInsights(P, cur, prev);
+  const incM = cur.income / nM;
+  const expCats = activeCats('expense').concat(S.categories.filter((c) => c.archived && c.type === 'expense' && cur.byCat[c.id]));
+  const rows = expCats.map((c) => {
+    const amt = cur.byCat[c.id] || 0, pAmt = prev.byCat[c.id] || 0;
+    const avg = monthlyAvg(c.id, P.months[0], 3);
+    return { c, amt, pAmt, avg, adv: categoryAdvice(c, amt / nM, avg, incM) };
+  }).filter((r) => r.amt > 0 || r.pAmt > 0).sort((a, b) => b.amt - a.amt);
+  if (!S.focusCat || !S.catById[S.focusCat] || S.catById[S.focusCat].type !== 'expense') S.focusCat = (rows[0] && rows[0].c.id) || 'food';
+
+  const advChip = (a) => `<span class="chip ${a.lv === 'up' ? 'chip-up' : a.lv === 'down' ? 'chip-down' : a.lv === 'warn' ? 'chip-warn' : 'chip-flat'}">${esc(a.txt)}</span>`;
+
+  $('#view-analysis').innerHTML = `
+  <div class="space-y-5">
+    <div class="flex flex-wrap items-center gap-3">
+      <p class="sub">${esc(P.label)}${nM > 1 ? `, ตัวเลขต่อเดือนเฉลี่ยจาก ${nM} เดือน` : ''}</p>
+      <button class="btn btn-ghost ml-auto no-print" data-action="print"><i data-lucide="printer"></i>พิมพ์ / PDF</button>
+    </div>
+
+    <div class="grid lg:grid-cols-5 gap-5">
+      <div class="panel lg:col-span-3">
+        <div class="panel-h"><h2>คำแนะนำ</h2><span class="sub ml-auto">${insights.length} ข้อ</span></div>
+        <div class="panel-b !pt-0">${insights.map(insightRow).join('')}</div>
+      </div>
+      <div class="panel lg:col-span-2">
+        <div class="panel-h"><h2>เทียบกฎ 50/30/20</h2></div>
+        <div class="panel-b space-y-4">
+          ${ruleRow('จำเป็น', cur.need, cur.income, RULE.need, 'need', 'max')}
+          ${ruleRow('ตามใจ', cur.want, cur.income, RULE.want, 'want', 'max')}
+          ${ruleRow('เงินออม', Math.max(0, cur.net), cur.income, RULE.save, 'income', 'min')}
+          <p class="sub text-xs pt-1">หมวดแต่ละหมวดเป็น "จำเป็น" หรือ "ตามใจ" ตั้งได้ในหน้าตั้งค่า</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><h2>สัดส่วนการใช้จ่ายแยกหมวด</h2><span class="sub ml-auto hidden sm:inline">รวม ${money(cur.expense)}</span></div>
+      <div class="scroll-x">
+        ${rows.length ? `<table class="ledger">
+          <thead><tr><th>หมวด</th><th class="r">จำนวนเงิน</th><th class="r">% ของรายจ่าย</th><th class="r">% ของรายรับ</th><th class="r">เทียบช่วงก่อน</th><th class="r">เฉลี่ย 3 เดือนก่อน</th><th>คำแนะนำ</th></tr></thead>
+          <tbody>${rows.map((r) => `
+            <tr class="cursor-pointer" data-focus-cat="${r.c.id}">
+              <td><div class="flex items-center gap-3">${catIcon(r.c)}<div><p class="whitespace-nowrap">${esc(r.c.name)}</p><p class="sub text-xs">${r.c.group === 'need' ? 'จำเป็น' : 'ตามใจ'}</p></div></div></td>
+              <td class="r num font-medium">${money(r.amt)}</td>
+              <td class="r"><div class="flex items-center justify-end gap-2"><div class="bar w-16 hidden sm:block"><span style="width:${cur.expense ? (r.amt / cur.expense * 100).toFixed(1) : 0}%;background:${r.c.color}"></span></div><span class="num w-12">${cur.expense ? pct(r.amt / cur.expense, 1) : '–'}</span></div></td>
+              <td class="r num">${cur.income ? pct(r.amt / cur.income, 1) : '–'}</td>
+              <td class="r">${deltaChip(r.amt, r.pAmt, false)}</td>
+              <td class="r num text-muted">${r.avg == null ? '–' : money(r.avg)}</td>
+              <td>${advChip(r.adv)}</td>
+            </tr>`).join('')}</tbody>
+        </table>` : emptyState('chart-pie', 'ยังไม่มีรายจ่ายในช่วงนี้')}
+      </div>
+    </div>
+
+    <div class="panel" id="catDeep"></div>
+
+    <div class="panel">
+      <div class="panel-h flex-wrap"><h2>ตารางเปรียบเทียบรายเดือน</h2>
+        <div class="ml-auto flex items-center gap-2 no-print">
+          <div class="seg" role="group" aria-label="จำนวนเดือน">
+            <button data-matrix="6" aria-pressed="${S.matrixMonths === 6}">6 เดือน</button>
+            <button data-matrix="12" aria-pressed="${S.matrixMonths === 12}">12 เดือน</button>
+          </div>
+          <button class="icon-btn" data-action="matrix-csv" title="ดาวน์โหลด CSV" aria-label="ดาวน์โหลดตารางเป็น CSV"><i data-lucide="download"></i></button>
+        </div>
+      </div>
+      <div class="scroll-x" id="matrixWrap">${matrixTable(P.endMonth, S.matrixMonths)}</div>
+      <p class="sub text-xs px-5 py-3">สีพื้นหลังเข้มขึ้นตามยอดที่สูงในแถวนั้น คอลัมน์ "ล่าสุด" เทียบเดือนสุดท้ายกับเดือนก่อนหน้า</p>
+    </div>
+  </div>`;
+  renderCatDeep();
+}
+
+function ruleRow(name, v, income, target, color, kind) {
+  const r = income > 0 ? v / income : 0;
+  const ok = kind === 'max' ? r <= target : r >= target;
+  return `<div>
+    <div class="flex items-baseline gap-2 text-sm mb-1.5"><span class="font-medium">${name}</span><span class="sub">เป้า ${kind === 'max' ? '≤' : '≥'} ${pct(target)}</span>
+      <span class="ml-auto num font-semibold ${ok ? '' : 'text-expense'}">${income > 0 ? pct(r, 1) : '–'}</span></div>
+    <div class="bar relative"><span style="width:${Math.min(100, r * 100).toFixed(1)}%;background:rgb(var(--${color}))"></span>
+      <i class="absolute top-[-3px] h-[14px] border-l-2 border-ink/60" style="left:${target * 100}%"></i></div>
+    <p class="sub text-xs mt-1">${income > 0 ? (ok ? 'อยู่ในเกณฑ์' : (kind === 'max' ? `เกินเกณฑ์ ${money(v - income * target)}` : `ขาดอีก ${money(income * target - v)}`)) : ''}</p>
+  </div>`;
+}
+
+function renderCatDeep() {
+  const box = $('#catDeep');
+  if (!box) return;
+  const P = period();
+  const nM = P.months.length;
+  const c = cat(S.focusCat);
+  const list = inRange(P.from, P.to).filter((t) => t.category === c.id);
+  const cur = summarize(inRange(P.from, P.to));
+  const amt = list.reduce((s, t) => s + t.amount, 0);
+  const prevAmt = inRange(P.prevFrom, P.prevTo).filter((t) => t.category === c.id).reduce((s, t) => s + t.amount, 0);
+  const avg3 = monthlyAvg(c.id, P.months[0], 3);
+  const months12 = []; for (let i = 11; i >= 0; i--) months12.push(addMonths(P.endMonth, -i));
+  const vals12 = months12.map((m) => ((S.monthly[m] || {}).byCat || {})[c.id] || 0);
+  const withData = months12.filter((m) => S.monthly[m]).length || 1;
+  const avg12 = Math.round(vals12.reduce((a, b) => a + b, 0) / withData);
+  const maxI = vals12.indexOf(Math.max(...vals12));
+  const biggest = list.slice().sort((a, b) => b.amount - a.amount)[0];
+  const byNote = {};
+  list.forEach((t) => { const k = (t.note || '(ไม่มีหมายเหตุ)').trim(); byNote[k] = byNote[k] || { n: 0, v: 0 }; byNote[k].n++; byNote[k].v += t.amount; });
+  const topNotes = Object.entries(byNote).sort((a, b) => b[1].v - a[1].v).slice(0, 5);
+  const adv = categoryAdvice(c, amt / nM, avg3, cur.income / nM);
+  const target = c.monthlyBudget > 0 ? c.monthlyBudget : (avg12 > 0 ? Math.min(avg12, amt / nM) : 0);
+  const recommend = (() => {
+    if (!amt) return 'ไม่มีรายจ่ายในหมวดนี้ช่วงนี้';
+    const per = amt / nM;
+    if (c.monthlyBudget > 0 && per > c.monthlyBudget) return `ใช้เกินงบ ${money(per - c.monthlyBudget)} ต่อเดือน รายการที่ใช้มากที่สุดคือ "${topNotes[0][0]}" ลองเริ่มลดจากรายการนี้`;
+    if (avg3 && per - avg3 > Math.max(300, avg3 * 0.2)) return `สูงกว่าค่าเฉลี่ย 3 เดือน ${money(per - avg3)} ต่อเดือน ถ้าคุมให้อยู่ราว ${money(avg3)} ต่อเดือน จะประหยัดได้ปีละ ${money((per - avg3) * 12)}`;
+    if (c.group === 'want' && cur.income > 0 && amt / cur.income > 0.12) return `หมวดนี้กินสัดส่วน ${pct(amt / cur.income)} ของรายรับ ถ้าตั้งงบไว้ที่ 10% (${money(cur.income / nM * 0.1)} ต่อเดือน) จะออมเพิ่มได้ ${money(amt / nM - cur.income / nM * 0.1)} ต่อเดือน`;
+    if (!c.monthlyBudget) return `ใช้จ่ายสม่ำเสมอ แนะนำตั้งงบที่ประมาณ ${money(Math.ceil(Math.max(avg12, per) * 1.05 / 100) * 100)} ต่อเดือนเพื่อติดตามได้ง่ายขึ้น`;
+    return 'อยู่ในงบและใกล้เคียงค่าเฉลี่ย รักษาระดับนี้ไว้';
+  })();
+
+  const stat = (label, val, sub) => `<div class="py-3 sm:py-0 sm:px-4 first:pl-0"><p class="sub text-xs">${label}</p><p class="num font-semibold text-lg mt-0.5">${val}</p>${sub ? `<p class="sub text-xs">${sub}</p>` : ''}</div>`;
+  box.innerHTML = `
+    <div class="panel-h flex-wrap">
+      <h2>วิเคราะห์รายหมวด</h2>
+      <label class="ml-auto no-print"><span class="sr-only">เลือกหมวด</span>
+        <select class="field !py-1.5 !w-auto text-sm" id="focusSel">${activeCats('expense').map((x) => `<option value="${x.id}" ${x.id === c.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>
+      </label>
+    </div>
+    <div class="panel-b">
+      <div class="flex items-center gap-3 mb-4">${catIcon(c)}<div><p class="font-semibold">${esc(c.name)}</p><p class="sub text-xs">${c.group === 'need' ? 'ค่าใช้จ่ายจำเป็น' : 'ค่าใช้จ่ายตามใจ'}${c.monthlyBudget ? `, งบ ${money(c.monthlyBudget)} ต่อเดือน` : ''}</p></div></div>
+      <div class="grid grid-cols-2 sm:grid-cols-5 sm:divide-x divide-rule border-y border-rule py-3 mb-4">
+        ${stat('ช่วงนี้', money(amt), deltaChip(amt, prevAmt, false) + ' เทียบช่วงก่อน')}
+        ${stat('สัดส่วนของรายจ่าย', cur.expense ? pct(amt / cur.expense, 1) : '–', cur.income ? `${pct(amt / cur.income, 1)} ของรายรับ` : '')}
+        ${stat('เฉลี่ย 12 เดือน', money(avg12), `สูงสุด ${thMonth(months12[maxI], true)}`)}
+        ${stat('จำนวนรายการ', list.length.toLocaleString('th-TH'), list.length ? `เฉลี่ย ${money(amt / list.length)} ต่อครั้ง` : '')}
+        ${stat('รายการใหญ่สุด', biggest ? money(biggest.amount) : '–', biggest ? esc((biggest.note || '').slice(0, 24)) : '')}
+      </div>
+      <div class="grid lg:grid-cols-5 gap-5">
+        <div class="lg:col-span-3"><div class="h-64"><canvas id="cCatTrend" aria-label="แนวโน้มรายจ่ายหมวด ${esc(c.name)}"></canvas></div></div>
+        <div class="lg:col-span-2 space-y-4">
+          <div class="insight ${adv.lv === 'up' ? 'warn' : adv.lv === 'down' ? 'good' : 'info'} !py-0 !border-0"><div><p class="font-medium">คำแนะนำ</p><p class="sub mt-0.5">${esc(recommend)}</p></div></div>
+          <div>
+            <p class="text-sm font-medium mb-1">ใช้ไปกับอะไรบ้าง</p>
+            ${topNotes.length ? topNotes.map(([k, v]) => `<div class="flex items-center gap-2 text-sm py-1.5 border-b border-rule/70 last:border-0"><span class="flex-1 truncate">${esc(k)}</span><span class="sub text-xs">${v.n} ครั้ง</span><span class="num w-24 text-right">${money(v.v)}</span></div>`).join('') : '<p class="sub">ไม่มีรายการ</p>'}
+          </div>
+          ${target > 0 && !c.monthlyBudget ? `<button class="btn btn-ghost w-full justify-center no-print" data-set-budget="${c.id}" data-amount="${Math.ceil(target / 100) * 100}"><i data-lucide="target"></i>ตั้งงบ ${money(Math.ceil(target / 100) * 100)} ต่อเดือน</button>` : ''}
+        </div>
+      </div>
+    </div>`;
+  icons();
+  categoryTrendChart($('#cCatTrend'), c.id, P.endMonth);
+}
+
+function matrixData(endMonth, n) {
+  const months = []; for (let i = n - 1; i >= 0; i--) months.push(addMonths(endMonth, -i));
+  const get = (m) => S.monthly[m] || { income: 0, expense: 0, byCat: {} };
+  const cats = S.categories.filter((c) => c.type === 'expense' && (!c.archived || months.some((m) => get(m).byCat[c.id])))
+    .sort((a, b) => (a.group === b.group ? a.sortOrder - b.sortOrder : a.group === 'need' ? -1 : 1));
+  return { months, get, cats };
+}
+
+function matrixTable(endMonth, n) {
+  const { months, get, cats } = matrixData(endMonth, n);
+  const has = months.some((m) => S.monthly[m]);
+  if (!has) return emptyState('table', 'ยังไม่มีข้อมูลในช่วงนี้');
+  const cell = (v, max, color) => {
+    const a = max > 0 && v > 0 ? 0.06 + (v / max) * 0.3 : 0;
+    return `<td class="num" style="${a ? `background:${tint(color, a)}` : ''}">${v ? money(v) : '<span class="text-muted">–</span>'}</td>`;
+  };
+  const tail = (vals, goodUp) => {
+    const nz = vals.filter((v) => v !== 0);
+    const avg = Math.round(vals.reduce((a, b) => a + b, 0) / Math.max(1, months.filter((m) => S.monthly[m]).length));
+    const last = vals[vals.length - 1], prev = vals[vals.length - 2];
+    return `<td class="num text-muted">${nz.length ? money(avg) : '–'}</td><td>${last || prev ? deltaChip(last, prev, goodUp) : ''}</td>`;
+  };
+  const row = (label, vals, opts = {}) => {
+    const max = Math.max(...vals);
+    return `<tr class="${opts.cls || ''}"><td class="stick">${label}</td>${vals.map((v) => opts.plain ? `<td class="num ${v < 0 ? 'text-expense' : ''}">${opts.fmt ? opts.fmt(v) : money(v)}</td>` : cell(v, max, opts.color)).join('')}${opts.noTail ? '<td></td><td></td>' : tail(vals, opts.goodUp)}</tr>`;
+  };
+  const inc = months.map((m) => get(m).income), exp = months.map((m) => get(m).expense);
+  const net = inc.map((v, i) => v - exp[i]);
+  const rate = inc.map((v, i) => (v > 0 ? net[i] / v : null));
+  let lastGroup = '';
+  const catRows = cats.map((c) => {
+    let head = '';
+    if (c.group !== lastGroup) { lastGroup = c.group; head = `<tr class="group"><td class="stick" colspan="1">${c.group === 'need' ? 'ค่าใช้จ่ายจำเป็น' : 'ค่าใช้จ่ายตามใจ'}</td><td colspan="${months.length + 2}"></td></tr>`; }
+    return head + row(`<span class="inline-flex items-center gap-2"><span class="w-2 h-2 rounded-full" style="background:${c.color}"></span>${esc(c.name)}</span>`, months.map((m) => get(m).byCat[c.id] || 0), { color: c.color, goodUp: false });
+  }).join('');
+  return `<table class="matrix text-sm">
+    <thead><tr><th class="stick">หมวด</th>${months.map((m) => `<th>${thMonth(m, true)}</th>`).join('')}<th>เฉลี่ย</th><th>ล่าสุด</th></tr></thead>
+    <tbody>
+      ${row('<span class="font-medium">รายรับรวม</span>', inc, { color: '#0E7C66', goodUp: true })}
+      ${catRows}
+      ${row('รวมรายจ่าย', exp, { cls: 'total', plain: true, goodUp: false })}
+      ${row('คงเหลือสุทธิ', net, { cls: 'total', plain: true, goodUp: true })}
+      ${row('อัตราการออม', rate.map((v) => v == null ? 0 : v), { plain: true, fmt: (v) => pct(v, 0), noTail: true })}
+    </tbody></table>`;
+}
+
+function matrixCsv() {
+  const P = period();
+  const { months, get, cats } = matrixData(P.endMonth, S.matrixMonths);
+  const rows = [['หมวด', ...months.map((m) => thMonth(m, true))]];
+  rows.push(['รายรับรวม', ...months.map((m) => r2(get(m).income))]);
+  cats.forEach((c) => rows.push([c.name, ...months.map((m) => r2(get(m).byCat[c.id] || 0))]));
+  rows.push(['รวมรายจ่าย', ...months.map((m) => r2(get(m).expense))]);
+  rows.push(['คงเหลือสุทธิ', ...months.map((m) => r2(get(m).income - get(m).expense))]);
+  downloadCsv(rows, `moneypro-monthly-${P.endMonth}.csv`);
+}
+
+/* =====================================================================
+ * View: Transactions
+ * =================================================================== */
+function filteredTx() {
+  const P = period();
+  const f = S.filters;
+  const q = f.q.trim().toLowerCase();
+  return inRange(P.from, P.to).filter((t) =>
+    (f.type === 'all' || t.type === f.type) && (!f.account || t.account === f.account) && (!f.category || t.category === f.category) &&
+    (!q || (t.note || '').toLowerCase().includes(q) || cat(t.category).name.toLowerCase().includes(q) || String(t.amount).includes(q))
+  ).sort((a, b) => (b.date + b.createdAt).localeCompare(a.date + a.createdAt));
+}
+
+function renderTransactions() {
+  const f = S.filters;
+  $('#view-transactions').innerHTML = `
+  <div class="space-y-4">
+    <div class="panel p-3 flex flex-wrap gap-2 items-center no-print">
+      <div class="relative flex-1 min-w-[12rem]">
+        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-muted"></i>
+        <input id="fQ" type="search" class="field !pl-9 !py-2" placeholder="ค้นหาหมายเหตุ หมวด หรือจำนวนเงิน" value="${esc(f.q)}">
+      </div>
+      <div class="seg" role="group" aria-label="ประเภท">
+        ${[['all', 'ทั้งหมด'], ['expense', 'รายจ่าย'], ['income', 'รายรับ']].map(([k, l]) => `<button data-ftype="${k}" aria-pressed="${f.type === k}">${l}</button>`).join('')}
+      </div>
+      <select id="fCat" class="field !w-auto !py-2 text-sm"><option value="">ทุกหมวด</option>
+        ${['expense', 'income'].map((ty) => `<optgroup label="${ty === 'expense' ? 'รายจ่าย' : 'รายรับ'}">${S.categories.filter((c) => c.type === ty).map((c) => `<option value="${c.id}" ${f.category === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</optgroup>`).join('')}
+      </select>
+      <select id="fAcc" class="field !w-auto !py-2 text-sm"><option value="">ทุกบัญชี</option>${S.accounts.map((a) => `<option value="${a.id}" ${f.account === a.id ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select>
+      <div class="flex gap-1 ml-auto">
+        <button class="btn btn-ghost !px-3" data-action="csv" title="ดาวน์โหลด CSV"><i data-lucide="download"></i><span class="hidden sm:inline">CSV</span></button>
+        <button class="btn btn-ghost !px-3" data-action="print" title="พิมพ์หรือบันทึกเป็น PDF"><i data-lucide="printer"></i><span class="hidden sm:inline">PDF</span></button>
+      </div>
+    </div>
+    <div id="txResults"></div>
+  </div>`;
+  renderTxResults();
+}
+
+function renderTxResults() {
+  const list = filteredTx();
+  const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+  S.page = Math.min(S.page, pages);
+  const slice = list.slice((S.page - 1) * PAGE_SIZE, S.page * PAGE_SIZE);
+  const sum = summarize(list);
+  const P = period();
+  $('#txResults').innerHTML = list.length ? `
+    <div class="flex flex-wrap gap-x-6 gap-y-1 text-sm mb-3 px-1">
+      <span class="sub">${esc(P.label)}: ${list.length.toLocaleString('th-TH')} รายการ</span>
+      <span>รายรับ <b class="num text-income">${money(sum.income)}</b></span>
+      <span>รายจ่าย <b class="num">${money(sum.expense)}</b></span>
+      <span>สุทธิ <b class="num ${sum.net < 0 ? 'text-expense' : ''}">${money(sum.net, { sign: true })}</b></span>
+    </div>
+    <div class="panel hidden md:block"><table class="ledger"><thead><tr><th>วันที่</th><th>รายละเอียด</th><th>บัญชี</th><th class="r">จำนวนเงิน</th><th class="no-print"></th></tr></thead><tbody>${slice.map(txRow).join('')}</tbody></table></div>
+    <div class="panel md:hidden px-4 pb-2">${txListMobile(slice)}</div>
+    ${pages > 1 ? `<div class="flex items-center justify-center gap-2 mt-4 no-print">
+      <button class="btn btn-ghost !px-3" data-page="${S.page - 1}" ${S.page <= 1 ? 'disabled' : ''} aria-label="หน้าก่อน"><i data-lucide="chevron-left"></i></button>
+      <span class="text-sm num px-2">หน้า ${S.page} จาก ${pages}</span>
+      <button class="btn btn-ghost !px-3" data-page="${S.page + 1}" ${S.page >= pages ? 'disabled' : ''} aria-label="หน้าถัดไป"><i data-lucide="chevron-right"></i></button>
+    </div>` : ''}`
+    : `<div class="panel">${emptyState('inbox', 'ไม่พบรายการ', 'ลองเปลี่ยนช่วงเวลาหรือตัวกรอง', '<button class="btn btn-primary mt-4" data-action="add"><i data-lucide="plus"></i>บันทึกรายการ</button>')}</div>`;
+  icons();
+}
+
+function downloadCsv(rows, name) {
+  const csv = '﻿' + rows.map((r) => r.map((v) => {
+    const s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function exportTxCsv() {
+  const rows = [['วันที่', 'ประเภท', 'หมวดหมู่', 'บัญชี', 'จำนวนเงิน', 'หมายเหตุ', 'ไฟล์แนบ']];
+  filteredTx().slice().reverse().forEach((t) => rows.push([t.date, t.type === 'income' ? 'รายรับ' : 'รายจ่าย', cat(t.category).name, acc(t.account).name,
+    t.type === 'income' ? t.amount : -t.amount, t.note, t.attachment ? `https://drive.google.com/file/d/${t.attachment}/view` : '']));
+  const P = period();
+  downloadCsv(rows, `moneypro-${P.from}_${P.to}.csv`);
+  toast('ดาวน์โหลด CSV แล้ว');
+}
+
+/* =====================================================================
+ * View: Budgets
+ * =================================================================== */
+function renderBudgets() {
+  const P = period();
+  const nM = P.months.length;
+  const cur = summarize(inRange(P.from, P.to));
+  const cats = activeCats('expense');
+  const totalBudget = cats.reduce((s, c) => s + c.monthlyBudget, 0) * nM;
+  const budgeted = cats.filter((c) => c.monthlyBudget > 0).reduce((s, c) => s + (cur.byCat[c.id] || 0), 0);
+  const left = monthOf(S.today) === P.endMonth && P.isMonth ? daysBetween(S.today, P.to) : 0;
+  $('#view-budgets').innerHTML = `
+  <div class="space-y-5">
+    <div class="panel grid sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-rule">
+      <div class="px-5 py-4"><p class="sub">งบรวม${nM > 1 ? ` (${nM} เดือน)` : ''}</p><p class="num text-2xl font-semibold mt-1">${money(totalBudget)}</p></div>
+      <div class="px-5 py-4"><p class="sub">ใช้ไปในหมวดที่ตั้งงบ</p><p class="num text-2xl font-semibold mt-1">${money(budgeted)}</p><p class="sub text-xs">${totalBudget ? pct(budgeted / totalBudget) + ' ของงบ' : ''}</p></div>
+      <div class="px-5 py-4"><p class="sub">คงเหลือ</p><p class="num text-2xl font-semibold mt-1 ${totalBudget - budgeted < 0 ? 'text-expense' : ''}">${money(totalBudget - budgeted)}</p><p class="sub text-xs">${left > 0 && totalBudget - budgeted > 0 ? `ใช้ได้วันละ ${money((totalBudget - budgeted) / left)} อีก ${left} วัน` : ''}</p></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><h2>งบรายเดือนแยกหมวด</h2><span class="sub ml-auto hidden sm:inline">แก้ตัวเลขแล้วกด Enter หรือคลิกที่อื่นเพื่อบันทึก</span></div>
+      <div class="scroll-x"><table class="ledger">
+        <thead><tr><th>หมวด</th><th class="r">งบต่อเดือน</th><th class="r">ใช้ไป${nM > 1 ? ` (${nM} เดือน)` : ''}</th><th style="min-width:180px">ความคืบหน้า</th><th class="r">เฉลี่ย 3 เดือนก่อน</th></tr></thead>
+        <tbody>${cats.map((c) => {
+          const spent = cur.byCat[c.id] || 0, b = c.monthlyBudget * nM, r = b ? spent / b : 0;
+          const avg = monthlyAvg(c.id, P.months[0], 3);
+          const color = r > 1 ? 'rgb(var(--expense))' : r >= 0.8 ? 'rgb(var(--warn))' : c.color;
+          return `<tr>
+            <td><div class="flex items-center gap-3">${catIcon(c)}<span class="whitespace-nowrap">${esc(c.name)}</span></div></td>
+            <td class="r"><input type="number" min="0" step="100" inputmode="numeric" class="field !w-28 !py-1.5 text-right num" value="${c.monthlyBudget || ''}" placeholder="ไม่ตั้ง" data-budget="${c.id}" aria-label="งบของ ${esc(c.name)}"></td>
+            <td class="r num">${money(spent)}</td>
+            <td>${b ? `<div class="flex items-center gap-2"><div class="bar flex-1"><span style="width:${Math.min(100, r * 100).toFixed(1)}%;background:${color}"></span></div><span class="num text-xs w-10 text-right ${r > 1 ? 'text-expense' : 'text-muted'}">${pct(r)}</span></div>` : '<span class="sub text-xs">ยังไม่ตั้งงบ</span>'}</td>
+            <td class="r num text-muted">${avg == null ? '–' : money(avg)}${!c.monthlyBudget && avg ? ` <button class="text-xs text-accent hover:underline ml-1 no-print" data-set-budget="${c.id}" data-amount="${Math.ceil(avg / 100) * 100}">ใช้เป็นงบ</button>` : ''}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>
+    </div>
+  </div>`;
+}
+
+/* =====================================================================
+ * View: Recurring
+ * =================================================================== */
+function nextRun(r) {
+  const after = r.lastRun || addDays(r.startDate, -1);
+  let y = +after.slice(0, 4), m = +after.slice(5, 7);
+  for (let i = 0; i < 3; i++) {
+    const c = y + '-' + pad2(m) + '-' + pad2(Math.min(r.dayOfMonth, new Date(y, m, 0).getDate()));
+    if (c > after) return c;
+    if (++m > 12) { m = 1; y++; }
+  }
+  return '';
+}
+function renderRecurring() {
+  const list = S.recurring.slice().sort((a, b) => a.dayOfMonth - b.dayOfMonth);
+  const monthlyOut = list.filter((r) => r.active && r.type === 'expense').reduce((s, r) => s + r.amount, 0);
+  const monthlyIn = list.filter((r) => r.active && r.type === 'income').reduce((s, r) => s + r.amount, 0);
+  $('#view-recurring').innerHTML = `
+  <div class="space-y-5">
+    <div class="flex flex-wrap items-center gap-3">
+      <p class="sub">รายการที่ระบบบันทึกให้อัตโนมัติทุกเดือน: รายจ่าย <b class="num text-ink">${money(monthlyOut)}</b> รายรับ <b class="num text-ink">${money(monthlyIn)}</b> ต่อเดือน</p>
+      <button class="btn btn-primary ml-auto" data-action="add-rec"><i data-lucide="plus"></i>เพิ่มรายการประจำ</button>
+    </div>
+    <div class="panel">
+      ${list.length ? `<div class="scroll-x"><table class="ledger">
+        <thead><tr><th>รายการ</th><th>บัญชี</th><th class="r">จำนวนเงิน</th><th>ทุกวันที่</th><th>ครั้งถัดไป</th><th>สถานะ</th><th></th></tr></thead>
+        <tbody>${list.map((r) => {
+          const c = cat(r.category);
+          return `<tr class="${r.active ? '' : 'opacity-60'}">
+            <td><div class="flex items-center gap-3">${catIcon(c)}<div><p class="whitespace-nowrap">${esc(r.note || c.name)}</p><p class="sub text-xs">${esc(c.name)}</p></div></div></td>
+            <td class="text-sm text-muted whitespace-nowrap">${esc(acc(r.account).name)}</td>
+            <td class="r num font-medium ${r.type === 'income' ? 'text-income' : ''}">${r.type === 'income' ? '+' : '−'}${money(r.amount)}</td>
+            <td class="num">${r.dayOfMonth}</td>
+            <td class="text-sm whitespace-nowrap">${r.active ? thDate(nextRun(r), true) : '–'}</td>
+            <td><button class="chip ${r.active ? 'chip-down' : 'chip-flat'}" data-toggle-rec="${r.id}">${r.active ? 'ใช้งาน' : 'หยุดไว้'}</button></td>
+            <td class="r whitespace-nowrap"><button class="icon-btn inline-grid" data-edit-rec="${r.id}" aria-label="แก้ไข"><i data-lucide="pencil"></i></button><button class="icon-btn inline-grid" data-del-rec="${r.id}" aria-label="ลบ"><i data-lucide="trash-2"></i></button></td>
+          </tr>`;
+        }).join('')}</tbody></table></div>`
+        : emptyState('repeat', 'ยังไม่มีรายการประจำ', 'เช่น ค่าเช่า ค่าอินเทอร์เน็ต เงินเดือน ระบบจะบันทึกให้ทุกเดือนตามวันที่กำหนด')}
+    </div>
+  </div>`;
+}
+
+/* =====================================================================
+ * View: Settings
+ * =================================================================== */
+function renderSettings() {
+  const theme = localStore('theme') || 'system';
+  const catBlock = (type, group, title) => {
+    const list = S.categories.filter((c) => c.type === type && (!group || c.group === group)).sort((a, b) => a.sortOrder - b.sortOrder);
+    return `<div><p class="text-sm font-medium mb-1 mt-3">${title}</p><div class="divide-y divide-rule/70">${list.map((c) => `
+      <div class="flex items-center gap-3 py-2 ${c.archived ? 'opacity-50' : ''}">${catIcon(c)}<span class="flex-1 truncate">${esc(c.name)}${c.archived ? ' (เก็บถาวร)' : ''}</span>
+        ${c.monthlyBudget ? `<span class="sub text-xs num">งบ ${money(c.monthlyBudget)}</span>` : ''}
+        <button class="icon-btn" data-edit-cat="${c.id}" aria-label="แก้ไข ${esc(c.name)}"><i data-lucide="pencil"></i></button></div>`).join('')}</div></div>`;
+  };
+  const s = S.settings;
+  $('#view-settings').innerHTML = `
+  <div class="grid lg:grid-cols-2 gap-5 items-start">
+    <div class="panel">
+      <div class="panel-h"><h2>บัญชี</h2><button class="btn btn-ghost ml-auto !py-1.5" data-action="add-acc"><i data-lucide="plus"></i>เพิ่มบัญชี</button></div>
+      <div class="panel-b !pt-0 divide-y divide-rule/70">${S.accounts.slice().sort((a, b) => a.sortOrder - b.sortOrder).map((a) => `
+        <div class="flex items-center gap-3 py-2.5 ${a.archived ? 'opacity-50' : ''}">
+          <span class="cat-ico" style="background:${tint(a.color, 0.14)};color:${a.color}"><i data-lucide="${ACCOUNT_ICONS[a.type] || 'wallet'}"></i></span>
+          <span class="flex-1 min-w-0"><span class="block truncate">${esc(a.name)}${a.archived ? ' (เก็บถาวร)' : ''}</span><span class="sub text-xs">${ACCOUNT_TYPES[a.type]}</span></span>
+          <span class="num">${money(S.balances[a.id] || 0)}</span>
+          <button class="icon-btn" data-edit-acc="${a.id}" aria-label="แก้ไข ${esc(a.name)}"><i data-lucide="pencil"></i></button>
+        </div>`).join('')}</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><h2>หมวดหมู่</h2><button class="btn btn-ghost ml-auto !py-1.5" data-action="add-cat"><i data-lucide="plus"></i>เพิ่มหมวด</button></div>
+      <div class="panel-b !pt-0">
+        ${catBlock('expense', 'need', 'รายจ่ายจำเป็น')}
+        ${catBlock('expense', 'want', 'รายจ่ายตามใจ')}
+        ${catBlock('income', '', 'รายรับ')}
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><h2>สำรองข้อมูล</h2></div>
+      <div class="panel-b space-y-3">
+        <label class="flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" id="backupToggle" class="mt-1 w-4 h-4 accent-[rgb(var(--accent))]" ${s.backupEnabled ? 'checked' : ''}>
+          <span><span class="font-medium">สำรองอัตโนมัติทุกวัน</span><span class="sub block">คัดลอก Google Sheet ไปเก็บในโฟลเดอร์ "MoneyPro Backups" เก็บไว้ 14 ชุดล่าสุด</span></span>
+        </label>
+        <div class="flex flex-wrap items-center gap-3">
+          <button class="btn btn-ghost" data-action="backup"><i data-lucide="hard-drive-download"></i>สำรองตอนนี้</button>
+          <span class="sub text-sm">${s.lastBackup ? `ล่าสุด ${new Date(s.lastBackup).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}` : 'ยังไม่เคยสำรอง'}
+            ${s.lastBackupUrl ? ` <a class="text-accent hover:underline" href="${esc(s.lastBackupUrl)}" target="_blank" rel="noopener">เปิดไฟล์</a>` : ''}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-h"><h2>การแสดงผลและไฟล์</h2></div>
+      <div class="panel-b space-y-4">
+        <div><p class="label">ธีม</p>
+          <div class="seg" role="group" aria-label="ธีม">${[['system', 'ตามระบบ'], ['light', 'สว่าง'], ['dark', 'มืด']].map(([k, l]) => `<button data-theme="${k}" aria-pressed="${theme === k}">${l}</button>`).join('')}</div>
+        </div>
+        <div><p class="label">สลิปและใบเสร็จที่แนบ</p>
+          <p class="sub text-sm">${s.receiptFolderUrl ? `เก็บในโฟลเดอร์ <a class="text-accent hover:underline" href="${esc(s.receiptFolderUrl)}" target="_blank" rel="noopener">MoneyPro Receipts</a> ใน Google Drive ของคุณ` : 'เมื่อแนบรูปครั้งแรก ระบบจะสร้างโฟลเดอร์ "MoneyPro Receipts" ใน Google Drive ของคุณ'}</p>
+        </div>
+        <div><p class="label">รายการประจำ</p>
+          <button class="btn btn-ghost" data-action="run-rec"><i data-lucide="refresh-cw"></i>สร้างรายการที่ถึงกำหนดตอนนี้</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =====================================================================
+ * Modals
+ * =================================================================== */
+let modalCleanup = null;
+function openModal(html, onMount) {
+  closeModal();
+  $('#modalRoot').innerHTML = `<div class="modal-back" data-close></div><div class="modal" role="dialog" aria-modal="true">${html}</div>`;
+  document.body.style.overflow = 'hidden';
+  icons();
+  if (onMount) modalCleanup = onMount($('#modalRoot .modal')) || null;
+  const first = $('#modalRoot .modal [autofocus]') || $('#modalRoot .modal input, #modalRoot .modal select');
+  if (first && window.matchMedia('(min-width: 640px)').matches) setTimeout(() => first.focus(), 50);
+}
+function closeModal() {
+  if (typeof modalCleanup === 'function') { try { modalCleanup(); } catch (e) {} }
+  modalCleanup = null;
+  $('#modalRoot').innerHTML = '';
+  document.body.style.overflow = '';
+}
+const modalHead = (title, sub) => `<div class="flex items-start gap-3 px-5 pt-5 pb-3 border-b border-rule"><div class="flex-1"><h3 class="font-semibold text-lg">${title}</h3>${sub ? `<p class="sub">${sub}</p>` : ''}</div><button class="icon-btn" data-close aria-label="ปิด"><i data-lucide="x"></i></button></div>`;
+const modalFoot = (left, right) => `<div class="flex items-center gap-2 px-5 py-4 border-t border-rule sticky bottom-0 bg-surface">${left || ''}<div class="ml-auto flex gap-2">${right}</div></div>`;
+
+function confirmDialog(title, text, okLabel = 'ลบ') {
+  return new Promise((resolve) => {
+    openModal(`${modalHead(title)}<div class="px-5 py-4"><p>${text}</p></div>${modalFoot('', `<button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-danger" id="cfOk">${okLabel}</button>`)}`, (m) => {
+      $('#cfOk', m).onclick = () => { resolve(true); closeModal(); };
+      return () => resolve(false);
+    });
+  });
+}
+
+const catOptions = (type, selected) => activeCats(type).map((c) => `<option value="${c.id}" ${c.id === selected ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+const accOptions = (selected) => activeAccounts().map((a) => `<option value="${a.id}" ${a.id === selected ? 'selected' : ''}>${esc(a.name)}</option>`).join('');
+
+/* ---------- Transaction form (with receipt upload) ---------- */
+function openTxForm(t) {
+  const isEdit = !!t;
+  const P = period();
+  const defDate = S.today >= P.from && S.today <= P.to ? S.today : P.to;
+  const d = t || { type: 'expense', date: defDate, category: '', account: (activeAccounts()[0] || {}).id, amount: '', note: '', attachment: '' };
+  const st = { type: d.type, attachment: d.attachment || '', uploadedNew: '' };
+
+  openModal(`
+    ${modalHead(isEdit ? 'แก้ไขรายการ' : 'บันทึกรายการ')}
+    <form id="txForm" class="px-5 py-4 space-y-4" novalidate>
+      <div id="dropZone" class="drop p-3">
+        <input type="file" id="rcptFile" accept="image/*,application/pdf" class="sr-only">
+        <div id="rcptEmpty" class="${st.attachment ? 'hidden' : ''} flex items-center gap-3">
+          <span class="cat-ico bg-accent/10 text-accent"><i data-lucide="scan-text"></i></span>
+          <div class="flex-1 min-w-0"><p class="font-medium text-sm">แนบสลิปหรือใบเสร็จ</p><p class="sub text-xs">ระบบจะอ่านยอดเงิน วันที่ และร้านค้าให้อัตโนมัติ</p></div>
+          <label for="rcptFile" class="btn btn-ghost !py-1.5 cursor-pointer"><i data-lucide="upload"></i>เลือกรูป</label>
+        </div>
+        <div id="rcptBusy" class="hidden flex items-center gap-3 text-sm"><i data-lucide="loader-circle" class="spin"></i><span id="rcptBusyText">กำลังอัปโหลด</span></div>
+        <div id="rcptDone" class="${st.attachment ? '' : 'hidden'}">
+          <div class="flex items-center gap-3">
+            <img id="rcptThumb" alt="" class="w-12 h-12 object-cover rounded-lg border border-rule ${st.attachment ? 'hidden' : ''}">
+            <span id="rcptIcon" class="cat-ico bg-accent/10 text-accent ${st.attachment ? '' : 'hidden'}"><i data-lucide="paperclip"></i></span>
+            <div class="flex-1 min-w-0"><p class="font-medium text-sm" id="rcptTitle">แนบไฟล์แล้ว</p><p class="sub text-xs" id="rcptSub">${st.attachment ? `<a class="text-accent hover:underline" target="_blank" rel="noopener" href="https://drive.google.com/file/d/${esc(st.attachment)}/view">เปิดดูใน Drive</a>` : ''}</p></div>
+            <button type="button" class="icon-btn" id="rcptRemove" aria-label="นำไฟล์แนบออก"><i data-lucide="x"></i></button>
+          </div>
+          <details id="rcptTextBox" class="hidden mt-2"><summary class="sub text-xs cursor-pointer">ข้อความที่อ่านได้จากรูป</summary><pre id="rcptText" class="mt-1 text-xs whitespace-pre-wrap max-h-40 overflow-auto bg-paper rounded-lg p-2 font-sans"></pre></details>
+        </div>
+      </div>
+
+      <div class="seg w-full grid grid-cols-2" role="group" aria-label="ประเภท">
+        <button type="button" data-txtype="expense" aria-pressed="${d.type === 'expense'}">รายจ่าย</button>
+        <button type="button" data-txtype="income" aria-pressed="${d.type === 'income'}">รายรับ</button>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="label" for="tAmount">จำนวนเงิน (บาท)</label><input id="tAmount" type="number" inputmode="decimal" step="0.01" min="0.01" class="field num text-lg font-semibold" value="${d.amount}" placeholder="0.00" required></div>
+        <div><label class="label" for="tDate">วันที่</label><input id="tDate" type="date" class="field" value="${d.date}" required></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="label" for="tCat">หมวดหมู่</label><select id="tCat" class="field"><option value="">เลือกหมวด</option>${catOptions(d.type, d.category)}</select></div>
+        <div><label class="label" for="tAcc">บัญชี</label><select id="tAcc" class="field">${accOptions(d.account)}</select></div>
+      </div>
+      <div><label class="label" for="tNote">หมายเหตุหรือร้านค้า</label><input id="tNote" class="field" maxlength="500" value="${esc(d.note)}" placeholder="เช่น ข้าวกลางวัน, ค่าไฟเดือนนี้"></div>
+      <p id="txErr" class="hidden text-sm text-expense"></p>
+    </form>
+    ${modalFoot(isEdit ? `<button class="btn btn-ghost !text-expense" id="txDel"><i data-lucide="trash-2"></i>ลบ</button>` : '',
+      `<button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary" id="txSave">${isEdit ? 'บันทึกการแก้ไข' : 'บันทึกรายการ'}</button>`)}
+  `, (m) => {
+    const setType = (ty) => {
+      st.type = ty;
+      $$('[data-txtype]', m).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.txtype === ty)));
+      const keep = $('#tCat', m).value;
+      $('#tCat', m).innerHTML = `<option value="">เลือกหมวด</option>${catOptions(ty, keep)}`;
+    };
+    $$('[data-txtype]', m).forEach((b) => b.onclick = () => setType(b.dataset.txtype));
+
+    // ---- Receipt upload ----
+    const show = (which) => ['rcptEmpty', 'rcptBusy', 'rcptDone'].forEach((id) => $('#' + id, m).classList.toggle('hidden', id !== which));
+    const mark = (el) => { el.classList.add('autofilled'); el.addEventListener('input', () => el.classList.remove('autofilled'), { once: true }); };
+    async function handleFile(file) {
+      if (!file) return;
+      if (!/^image\/|^application\/pdf$/.test(file.type)) { toast('รองรับเฉพาะรูปภาพหรือ PDF', 'error'); return; }
+      show('rcptBusy'); $('#rcptBusyText', m).textContent = 'กำลังอัปโหลดและอ่านข้อมูลจากรูป';
+      try {
+        const prepared = await prepareImage(file);
+        if (prepared.preview) { $('#rcptThumb', m).src = prepared.preview; $('#rcptThumb', m).classList.remove('hidden'); $('#rcptIcon', m).classList.add('hidden'); }
+        else { $('#rcptThumb', m).classList.add('hidden'); $('#rcptIcon', m).classList.remove('hidden'); }
+        const res = await api('uploadReceipt', { data: prepared.base64, mimeType: prepared.mime, name: file.name });
+        if (st.uploadedNew) api('discardReceipt', st.uploadedNew).catch(() => {});
+        st.attachment = res.fileId; st.uploadedNew = res.fileId;
+        const p = res.parsed || {};
+        const filled = [];
+        if (p.type && p.type !== st.type) setType(p.type);
+        if (p.amount) { $('#tAmount', m).value = p.amount; mark($('#tAmount', m)); filled.push('ยอดเงิน'); }
+        if (p.date) { $('#tDate', m).value = p.date; mark($('#tDate', m)); filled.push('วันที่'); }
+        if (p.category && S.catById[p.category] && S.catById[p.category].type === st.type) { $('#tCat', m).value = p.category; mark($('#tCat', m)); filled.push('หมวด'); }
+        if (p.merchant && !$('#tNote', m).value) { $('#tNote', m).value = p.merchant; mark($('#tNote', m)); filled.push('ร้านค้า'); }
+        $('#rcptTitle', m).textContent = filled.length ? `อ่านได้: ${filled.join(', ')}` : (res.ocrError ? 'แนบรูปแล้ว แต่อ่านข้อความไม่ได้' : 'แนบรูปแล้ว ไม่พบข้อมูลที่อ่านได้');
+        $('#rcptSub', m).innerHTML = res.ocrError ? esc(res.ocrError) : (filled.length ? 'ตรวจสอบช่องที่ไฮไลต์ก่อนบันทึก' : 'กรอกข้อมูลเองได้เลย');
+        if (res.text) { $('#rcptText', m).textContent = res.text; $('#rcptTextBox', m).classList.remove('hidden'); }
+        show('rcptDone');
+      } catch (e) {
+        show(st.attachment ? 'rcptDone' : 'rcptEmpty');
+        toast(e.message, 'error');
+      }
+    }
+    $('#rcptFile', m).onchange = (e) => handleFile(e.target.files[0]);
+    const dz = $('#dropZone', m);
+    dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('over'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+    dz.addEventListener('drop', (e) => { e.preventDefault(); dz.classList.remove('over'); handleFile(e.dataTransfer.files[0]); });
+    $('#rcptRemove', m).onclick = () => {
+      if (st.uploadedNew) api('discardReceipt', st.uploadedNew).catch(() => {});
+      st.attachment = ''; st.uploadedNew = '';
+      $('#rcptFile', m).value = '';
+      $('#rcptTextBox', m).classList.add('hidden');
+      show('rcptEmpty');
+    };
+
+    // ---- Save / delete ----
+    let saved = false;
+    $('#txSave', m).onclick = async () => {
+      const data = {
+        id: t && t.id, type: st.type, amount: parseFloat($('#tAmount', m).value), date: $('#tDate', m).value,
+        category: $('#tCat', m).value, account: $('#tAcc', m).value, note: $('#tNote', m).value.trim(), attachment: st.attachment,
+      };
+      const err = !(data.amount > 0) ? 'กรอกจำนวนเงินที่มากกว่า 0' : !data.date ? 'เลือกวันที่' : !data.category ? 'เลือกหมวดหมู่' : !data.account ? 'เลือกบัญชี' : '';
+      if (err) { $('#txErr', m).textContent = err; $('#txErr', m).classList.remove('hidden'); return; }
+      const btn = $('#txSave', m); btn.disabled = true; btn.textContent = 'กำลังบันทึก';
+      try {
+        await api(isEdit ? 'updateTransaction' : 'addTransaction', data);
+        saved = true;
+        closeModal();
+        toast(isEdit ? 'บันทึกการแก้ไขแล้ว' : 'บันทึกรายการแล้ว');
+        await refresh();
+      } catch (e) {
+        $('#txErr', m).textContent = e.message; $('#txErr', m).classList.remove('hidden');
+        btn.disabled = false; btn.textContent = isEdit ? 'บันทึกการแก้ไข' : 'บันทึกรายการ';
+      }
+    };
+    if (isEdit) $('#txDel', m).onclick = async () => { saved = true; closeModal(); await deleteTx(t.id); };
+    return () => { if (!saved && st.uploadedNew) api('discardReceipt', st.uploadedNew).catch(() => {}); };
+  });
+}
+
+/** ย่อรูปให้ด้านยาวไม่เกิน 2000px (คมพอสำหรับ OCR) แล้วแปลงเป็น base64 */
+function prepareImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('อ่านไฟล์ไม่สำเร็จ'));
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      if (file.type === 'application/pdf' || file.type === 'image/gif') {
+        resolve({ base64: dataUrl.split(',')[1], mime: file.type, preview: file.type === 'image/gif' ? dataUrl : '' });
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        const max = 2000, scale = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        const out = c.toDataURL('image/jpeg', 0.88);
+        resolve({ base64: out.split(',')[1], mime: 'image/jpeg', preview: out });
+      };
+      img.onerror = () => reject(new Error('เปิดรูปนี้ไม่ได้ (ถ้าเป็นไฟล์ HEIC ลองถ่ายหน้าจอหรือแปลงเป็น JPG)'));
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function deleteTx(id) {
+  const t = S.tx.find((x) => x.id === id);
+  if (!t) return;
+  const ok = await confirmDialog('ลบรายการนี้?', `${esc(t.note || cat(t.category).name)} ${money(t.amount)} วันที่ ${thDate(t.date, true)}${t.attachment ? ' รวมถึงไฟล์สลิปที่แนบไว้' : ''} จะถูกลบถาวร`);
+  if (!ok) return;
+  try { await api('deleteTransaction', id); toast('ลบรายการแล้ว'); await refresh(); } catch (e) { toast(e.message, 'error'); }
+}
+
+/* ---------- Account form ---------- */
+function openAccForm(a) {
+  const d = a || { name: '', type: 'bank', openingBalance: 0, color: COLOR_CHOICES[5] };
+  let color = d.color;
+  openModal(`
+    ${modalHead(a ? 'แก้ไขบัญชี' : 'เพิ่มบัญชี')}
+    <div class="px-5 py-4 space-y-4">
+      <div><label class="label" for="aName">ชื่อบัญชี</label><input id="aName" class="field" maxlength="60" value="${esc(d.name)}" placeholder="เช่น กสิกรไทย, บัตร KTC" autofocus></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="label" for="aType">ประเภท</label><select id="aType" class="field">${Object.entries(ACCOUNT_TYPES).map(([k, v]) => `<option value="${k}" ${k === d.type ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+        <div><label class="label" for="aOpen">ยอดยกมา (บาท)</label><input id="aOpen" type="number" step="0.01" class="field num" value="${d.openingBalance}"></div>
+      </div>
+      <div><p class="label">สี</p><div class="flex flex-wrap gap-2" id="aColors">${COLOR_CHOICES.map((c) => `<button type="button" class="w-7 h-7 rounded-full border-2" style="background:${c};border-color:${c === color ? 'rgb(var(--ink))' : 'transparent'}" data-color="${c}" aria-label="สี ${c}"></button>`).join('')}</div></div>
+      <p class="sub text-xs">บัตรเครดิตให้ใส่ยอดยกมาเป็นค่าติดลบถ้ามียอดค้างชำระ</p>
+      <p id="aErr" class="hidden text-sm text-expense"></p>
+    </div>
+    ${modalFoot(a ? `<button class="btn btn-ghost !text-expense" id="aDel"><i data-lucide="trash-2"></i>ลบ</button>` : '', `<button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary" id="aSave">บันทึก</button>`)}
+  `, (m) => {
+    $$('[data-color]', m).forEach((b) => b.onclick = () => { color = b.dataset.color; $$('[data-color]', m).forEach((x) => x.style.borderColor = x === b ? 'rgb(var(--ink))' : 'transparent'); });
+    $('#aSave', m).onclick = async () => {
+      try {
+        await api('saveAccount', { id: a && a.id, name: $('#aName', m).value, type: $('#aType', m).value, openingBalance: $('#aOpen', m).value, color });
+        closeModal(); toast('บันทึกบัญชีแล้ว'); await refresh();
+      } catch (e) { $('#aErr', m).textContent = e.message; $('#aErr', m).classList.remove('hidden'); }
+    };
+    if (a) $('#aDel', m).onclick = async () => {
+      closeModal();
+      if (!(await confirmDialog('ลบบัญชีนี้?', 'ถ้าบัญชีมีรายการอยู่แล้ว ระบบจะเก็บถาวรแทนการลบ เพื่อไม่ให้ประวัติหาย'))) return;
+      try { const r = await api('deleteAccount', a.id); toast(r.archived ? 'เก็บบัญชีถาวรแล้ว' : 'ลบบัญชีแล้ว'); await refresh(); } catch (e) { toast(e.message, 'error'); }
+    };
+  });
+}
+
+/* ---------- Category form ---------- */
+function openCatForm(c) {
+  const d = c || { name: '', type: 'expense', group: 'want', icon: 'tag', color: COLOR_CHOICES[0], monthlyBudget: 0, archived: false };
+  let icon = d.icon, color = d.color;
+  openModal(`
+    ${modalHead(c ? 'แก้ไขหมวดหมู่' : 'เพิ่มหมวดหมู่')}
+    <div class="px-5 py-4 space-y-4">
+      <div><label class="label" for="cName">ชื่อหมวด</label><input id="cName" class="field" maxlength="60" value="${esc(d.name)}" autofocus></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="label" for="cType">ประเภท</label><select id="cType" class="field"><option value="expense" ${d.type === 'expense' ? 'selected' : ''}>รายจ่าย</option><option value="income" ${d.type === 'income' ? 'selected' : ''}>รายรับ</option></select></div>
+        <div id="cGroupWrap" class="${d.type === 'income' ? 'hidden' : ''}"><label class="label" for="cGroup">กลุ่ม (กฎ 50/30/20)</label><select id="cGroup" class="field"><option value="need" ${d.group === 'need' ? 'selected' : ''}>จำเป็น</option><option value="want" ${d.group !== 'need' ? 'selected' : ''}>ตามใจ</option></select></div>
+      </div>
+      <div id="cBudgetWrap" class="${d.type === 'income' ? 'hidden' : ''}"><label class="label" for="cBudget">งบต่อเดือน (เว้นว่างถ้าไม่ตั้ง)</label><input id="cBudget" type="number" min="0" step="100" class="field num" value="${d.monthlyBudget || ''}"></div>
+      <div><p class="label">ไอคอน</p><div class="grid grid-cols-9 gap-1" id="cIcons">${ICON_CHOICES.map((i) => `<button type="button" class="icon-btn ${i === icon ? '!bg-ink !text-surface' : ''}" data-icon="${i}" aria-label="${i}"><i data-lucide="${i}"></i></button>`).join('')}</div></div>
+      <div><p class="label">สี</p><div class="flex flex-wrap gap-2">${COLOR_CHOICES.map((x) => `<button type="button" class="w-7 h-7 rounded-full border-2" style="background:${x};border-color:${x === color ? 'rgb(var(--ink))' : 'transparent'}" data-color="${x}" aria-label="สี ${x}"></button>`).join('')}</div></div>
+      ${c && c.archived ? `<label class="flex items-center gap-2"><input type="checkbox" id="cRestore"> นำกลับมาใช้งาน</label>` : ''}
+      <p id="cErr" class="hidden text-sm text-expense"></p>
+    </div>
+    ${modalFoot(c && !c.archived ? `<button class="btn btn-ghost !text-expense" id="cDel"><i data-lucide="trash-2"></i>ลบ</button>` : '', `<button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary" id="cSave">บันทึก</button>`)}
+  `, (m) => {
+    $('#cType', m).onchange = (e) => { const inc = e.target.value === 'income'; $('#cGroupWrap', m).classList.toggle('hidden', inc); $('#cBudgetWrap', m).classList.toggle('hidden', inc); };
+    $$('[data-icon]', m).forEach((b) => b.onclick = () => {
+      icon = b.dataset.icon;
+      $$('[data-icon]', m).forEach((x) => { x.classList.toggle('!bg-ink', x === b); x.classList.toggle('!text-surface', x === b); });
+    });
+    $$('[data-color]', m).forEach((b) => b.onclick = () => { color = b.dataset.color; $$('[data-color]', m).forEach((x) => x.style.borderColor = x === b ? 'rgb(var(--ink))' : 'transparent'); });
+    $('#cSave', m).onclick = async () => {
+      try {
+        await api('saveCategory', { id: c && c.id, name: $('#cName', m).value, type: $('#cType', m).value, group: $('#cGroup', m).value, icon, color,
+          monthlyBudget: $('#cBudget', m).value, archived: c && c.archived ? !($('#cRestore', m) || {}).checked : false });
+        closeModal(); toast('บันทึกหมวดหมู่แล้ว'); await refresh();
+      } catch (e) { $('#cErr', m).textContent = e.message; $('#cErr', m).classList.remove('hidden'); }
+    };
+    if (c && !c.archived) $('#cDel', m).onclick = async () => {
+      closeModal();
+      if (!(await confirmDialog('ลบหมวดนี้?', 'ถ้าหมวดมีรายการอยู่แล้ว ระบบจะเก็บถาวรแทนการลบ รายการเดิมยังอยู่ครบ'))) return;
+      try { const r = await api('deleteCategory', c.id); toast(r.archived ? 'เก็บหมวดถาวรแล้ว' : 'ลบหมวดแล้ว'); await refresh(); } catch (e) { toast(e.message, 'error'); }
+    };
+  });
+}
+
+/* ---------- Recurring form ---------- */
+function openRecForm(r) {
+  const d = r || { type: 'expense', category: '', account: (activeAccounts()[0] || {}).id, amount: '', dayOfMonth: +S.today.slice(8, 10), startDate: S.today, note: '', active: true };
+  let type = d.type;
+  openModal(`
+    ${modalHead(r ? 'แก้ไขรายการประจำ' : 'เพิ่มรายการประจำ', 'ระบบจะบันทึกให้อัตโนมัติทุกเดือนตามวันที่กำหนด')}
+    <div class="px-5 py-4 space-y-4">
+      <div class="seg w-full grid grid-cols-2" role="group" aria-label="ประเภท">
+        <button type="button" data-rtype="expense" aria-pressed="${type === 'expense'}">รายจ่าย</button>
+        <button type="button" data-rtype="income" aria-pressed="${type === 'income'}">รายรับ</button>
+      </div>
+      <div><label class="label" for="rNote">ชื่อรายการ</label><input id="rNote" class="field" maxlength="500" value="${esc(d.note)}" placeholder="เช่น ค่าเช่าห้อง, Netflix" autofocus></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="label" for="rAmount">จำนวนเงิน</label><input id="rAmount" type="number" step="0.01" min="0.01" class="field num" value="${d.amount}"></div>
+        <div><label class="label" for="rDay">ทุกวันที่</label><input id="rDay" type="number" min="1" max="31" class="field num" value="${d.dayOfMonth}"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="label" for="rCat">หมวดหมู่</label><select id="rCat" class="field"><option value="">เลือกหมวด</option>${catOptions(type, d.category)}</select></div>
+        <div><label class="label" for="rAcc">บัญชี</label><select id="rAcc" class="field">${accOptions(d.account)}</select></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3 items-end">
+        <div><label class="label" for="rStart">เริ่มตั้งแต่</label><input id="rStart" type="date" class="field" value="${d.startDate}"></div>
+        <label class="flex items-center gap-2 pb-2.5"><input type="checkbox" id="rActive" ${d.active ? 'checked' : ''}> ใช้งาน</label>
+      </div>
+      <p class="sub text-xs">ถ้าวันที่เริ่มอยู่ในอดีต ระบบจะสร้างรายการย้อนหลังให้ครบทุกเดือน ถ้าเดือนไหนไม่มีวันที่ 29–31 จะใช้วันสุดท้ายของเดือนแทน</p>
+      <p id="rErr" class="hidden text-sm text-expense"></p>
+    </div>
+    ${modalFoot('', `<button class="btn btn-ghost" data-close>ยกเลิก</button><button class="btn btn-primary" id="rSave">บันทึก</button>`)}
+  `, (m) => {
+    $$('[data-rtype]', m).forEach((b) => b.onclick = () => {
+      type = b.dataset.rtype;
+      $$('[data-rtype]', m).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      $('#rCat', m).innerHTML = `<option value="">เลือกหมวด</option>${catOptions(type, '')}`;
+    });
+    $('#rSave', m).onclick = async () => {
+      try {
+        const n = await api('saveRecurring', { id: r && r.id, type, note: $('#rNote', m).value, amount: $('#rAmount', m).value, dayOfMonth: $('#rDay', m).value,
+          category: $('#rCat', m).value, account: $('#rAcc', m).value, startDate: $('#rStart', m).value, active: $('#rActive', m).checked });
+        closeModal(); toast('บันทึกรายการประจำแล้ว'); await refresh();
+      } catch (e) { $('#rErr', m).textContent = e.message; $('#rErr', m).classList.remove('hidden'); }
+    };
+  });
+}
+
+/* ---------- Mobile "more" sheet ---------- */
+function openMoreSheet() {
+  openModal(`${modalHead('เมนู')}<div class="p-3">${['budgets', 'recurring', 'settings'].map((v) => `
+    <a href="#${v}" class="nav-link !py-3" data-close><i data-lucide="${VIEWS[v].icon}"></i>${VIEWS[v].title}</a>`).join('')}</div>`);
+}
+
+/* =====================================================================
+ * Routing, rendering & events
+ * =================================================================== */
+const RENDER = { overview: renderOverview, analysis: renderAnalysis, transactions: renderTransactions, budgets: renderBudgets, recurring: renderRecurring, settings: renderSettings };
+
+function render() {
+  const v = S.view;
+  $('#viewTitle').textContent = VIEWS[v].title;
+  document.title = VIEWS[v].title + ' – MoneyPro';
+  $$('.view').forEach((el) => el.classList.toggle('hidden', el.id !== 'view-' + v));
+  $$('[data-nav]').forEach((a) => a.dataset.nav === v ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
+  $$('.tab-link').forEach((a) => {
+    const on = a.dataset.tab === v || (a.dataset.tab === 'more' && ['budgets', 'recurring', 'settings'].includes(v));
+    on ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current');
+  });
+  $('#periodSel').disabled = v === 'recurring' || v === 'settings';
+  const netWorth = Object.keys(S.balances).reduce((s, k) => s + (S.balances[k] || 0), 0);
+  $('#sideNetWorth').textContent = money(netWorth);
+  RENDER[v]();
+  icons();
+}
+
+function route() {
+  const h = location.hash.replace('#', '');
+  S.view = VIEWS[h] ? h : 'overview';
+  closeModal();
+  render();
+  window.scrollTo(0, 0);
+}
+
+async function refresh() {
+  const d = await api('bootstrap');
+  apply(d);
+  render();
+}
+function apply(d) {
+  S.today = d.today || S.today;
+  S.accounts = d.accounts || []; S.categories = d.categories || []; S.recurring = d.recurring || [];
+  S.settings = d.settings || {}; S.tx = d.transactions || []; S.balances = d.balances || {};
+  indexData();
+}
+
+function localStore(k, v) {
+  try { if (v === undefined) return localStorage.getItem('mp_' + k); localStorage.setItem('mp_' + k, v); } catch (e) { return null; }
+}
+function applyTheme() {
+  const t = localStore('theme') || 'system';
+  const dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.classList.toggle('dark', dark);
+}
+
+function bind() {
+  window.addEventListener('hashchange', route);
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applyTheme(); render(); });
+
+  $('#periodSel').addEventListener('change', (e) => {
+    S.periodKey = e.target.value;
+    $('#customRange').classList.toggle('hidden', S.periodKey !== 'custom');
+    if (S.periodKey === 'custom') {
+      const P = period();
+      $('#rangeFrom').value = P.from; $('#rangeTo').value = P.to;
+    }
+    S.page = 1;
+    render();
+  });
+  $('#rangeApply').addEventListener('click', () => { S.custom = { from: $('#rangeFrom').value, to: $('#rangeTo').value }; S.page = 1; render(); });
+  $('#addBtn').addEventListener('click', () => openTxForm());
+
+  document.addEventListener('click', async (e) => {
+    const el = (sel) => e.target.closest(sel);
+    if (el('[data-close]')) { closeModal(); return; }
+    const act = el('[data-action]');
+    if (act) {
+      const a = act.dataset.action;
+      if (a === 'add') openTxForm();
+      else if (a === 'more') openMoreSheet();
+      else if (a === 'print') window.print();
+      else if (a === 'csv') exportTxCsv();
+      else if (a === 'matrix-csv') matrixCsv();
+      else if (a === 'add-rec') openRecForm();
+      else if (a === 'add-acc') openAccForm();
+      else if (a === 'add-cat') openCatForm();
+      else if (a === 'backup') {
+        act.disabled = true;
+        try { const r = await api('backupNow'); toast('สำรองข้อมูลแล้ว: ' + r.name); await refresh(); } catch (err) { toast(err.message, 'error'); }
+        act.disabled = false;
+      } else if (a === 'run-rec') {
+        try { const n = await api('runRecurringNow'); toast(n ? `สร้าง ${n} รายการ` : 'ไม่มีรายการที่ถึงกำหนด'); await refresh(); } catch (err) { toast(err.message, 'error'); }
+      }
+      return;
+    }
+    const et = el('[data-edit-tx]'); if (et) { openTxForm(S.tx.find((t) => t.id === et.dataset.editTx)); return; }
+    const dt = el('[data-del-tx]'); if (dt) { deleteTx(dt.dataset.delTx); return; }
+    const ea = el('[data-edit-acc]'); if (ea) { openAccForm(S.accById[ea.dataset.editAcc]); return; }
+    const ec = el('[data-edit-cat]'); if (ec) { openCatForm(S.catById[ec.dataset.editCat]); return; }
+    const er = el('[data-edit-rec]'); if (er) { openRecForm(S.recurring.find((r) => r.id === er.dataset.editRec)); return; }
+    const dr = el('[data-del-rec]');
+    if (dr) {
+      if (await confirmDialog('ลบรายการประจำนี้?', 'รายการที่บันทึกไปแล้วจะยังอยู่ ระบบจะหยุดสร้างรายการใหม่เท่านั้น')) {
+        try { await api('deleteRecurring', dr.dataset.delRec); toast('ลบรายการประจำแล้ว'); await refresh(); } catch (err) { toast(err.message, 'error'); }
+      }
+      return;
+    }
+    const tr = el('[data-toggle-rec]');
+    if (tr) {
+      const r = S.recurring.find((x) => x.id === tr.dataset.toggleRec);
+      try { await api('saveRecurring', { ...r, active: !r.active }); toast(r.active ? 'หยุดรายการประจำแล้ว' : 'เปิดใช้งานแล้ว'); await refresh(); } catch (err) { toast(err.message, 'error'); }
+      return;
+    }
+    const fc = el('[data-focus-cat]');
+    if (fc && !el('button[data-edit-tx]')) {
+      S.focusCat = fc.dataset.focusCat;
+      if (S.view !== 'analysis') { location.hash = 'analysis'; setTimeout(() => $('#catDeep') && $('#catDeep').scrollIntoView({ behavior: 'smooth' }), 80); }
+      else { renderCatDeep(); $('#catDeep').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      return;
+    }
+    const sb = el('[data-set-budget]');
+    if (sb) {
+      try { await api('setBudget', sb.dataset.setBudget, +sb.dataset.amount); toast('ตั้งงบแล้ว'); await refresh(); } catch (err) { toast(err.message, 'error'); }
+      return;
+    }
+    const mx = el('[data-matrix]');
+    if (mx) { S.matrixMonths = +mx.dataset.matrix; renderAnalysis(); icons(); return; }
+    const ft = el('[data-ftype]');
+    if (ft) { S.filters.type = ft.dataset.ftype; S.page = 1; $$('[data-ftype]').forEach((b) => b.setAttribute('aria-pressed', String(b === ft))); renderTxResults(); return; }
+    const pg = el('[data-page]');
+    if (pg && !pg.disabled) { S.page = +pg.dataset.page; renderTxResults(); $('#view-transactions').scrollIntoView(); return; }
+    const th = el('[data-theme]');
+    if (th) { localStore('theme', th.dataset.theme); applyTheme(); render(); return; }
+  });
+
+  document.addEventListener('change', async (e) => {
+    const t = e.target;
+    if (t.id === 'focusSel') { S.focusCat = t.value; renderCatDeep(); }
+    else if (t.id === 'fCat') { S.filters.category = t.value; S.page = 1; renderTxResults(); }
+    else if (t.id === 'fAcc') { S.filters.account = t.value; S.page = 1; renderTxResults(); }
+    else if (t.id === 'backupToggle') {
+      try { S.settings = await api('saveSettings', { backupEnabled: t.checked }); toast(t.checked ? 'เปิดการสำรองอัตโนมัติแล้ว' : 'ปิดการสำรองอัตโนมัติแล้ว'); }
+      catch (err) { t.checked = !t.checked; toast(err.message, 'error'); }
+    } else if (t.dataset.budget) {
+      const c = S.catById[t.dataset.budget];
+      const v = Math.max(0, +t.value || 0);
+      if (c && v !== c.monthlyBudget) {
+        try { await api('setBudget', c.id, v); toast(v ? `ตั้งงบ ${c.name} ${money(v)} แล้ว` : `ยกเลิกงบ ${c.name} แล้ว`); await refresh(); } catch (err) { toast(err.message, 'error'); }
+      }
+    }
+  });
+  let qT;
+  document.addEventListener('input', (e) => {
+    if (e.target.id === 'fQ') { clearTimeout(qT); qT = setTimeout(() => { S.filters.q = e.target.value; S.page = 1; renderTxResults(); }, 200); }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && $('#modalRoot').innerHTML) closeModal();
+    if (e.key === 'Enter' && e.target.dataset && e.target.dataset.budget) e.target.blur();
+  });
+}
+
+(async function init() {
+  applyTheme();
+  if (!IS_GAS) $('#demoBanner').classList.remove('hidden');
+  $('#sideNav').innerHTML = Object.entries(VIEWS).map(([k, v]) => `<a href="#${k}" class="nav-link" data-nav="${k}"><i data-lucide="${v.icon}"></i>${v.title}</a>`).join('');
+  S.periodKey = 'm:' + monthOf(S.today);
+  bind();
+  icons();
+  try {
+    const d = await api('bootstrap');
+    apply(d);
+    S.periodKey = 'm:' + monthOf(S.today);
+    $('#periodSel').innerHTML = periodOptions().map(([k, l]) => `<option value="${k}">${l}</option>`).join('');
+    $('#periodSel').value = S.periodKey;
+    $('#loading').classList.add('hidden');
+    route();
+    if (d.recurringGenerated) toast(`บันทึกรายการประจำให้อัตโนมัติ ${d.recurringGenerated} รายการ`);
+  } catch (e) {
+    $('#loading').innerHTML = `<i data-lucide="circle-alert" class="inline-block !w-7 !h-7 text-expense"></i><p class="mt-3 font-medium">โหลดข้อมูลไม่สำเร็จ</p><p class="sub mt-1">${esc(e.message)}</p><button class="btn btn-ghost mt-4" onclick="location.reload()">ลองใหม่</button>`;
+    icons();
+  }
+})();
+</script>
+</body>
+</html>

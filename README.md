@@ -1,0 +1,91 @@
+# MoneyPro
+
+เว็บแอปบันทึกและวิเคราะห์รายรับรายจ่ายส่วนตัว ใช้ **Google Sheet** เป็นฐานข้อมูลและ **Google Apps Script** เป็น backend ใช้ได้ทั้งบนมือถือและคอมพิวเตอร์
+
+## ความสามารถ
+
+**วิเคราะห์การใช้จ่าย**
+- เทียบการจัดสรรรายได้กับกฎ 50/30/20 (จำเป็น / ตามใจ / เงินออม) พร้อมบอกว่าเกินหรือขาดกี่บาท
+- คำแนะนำอัตโนมัติจากข้อมูลจริง เช่น หมวดที่สูงกว่าค่าเฉลี่ย 3 เดือน หมวดที่ใกล้หรือเกินงบ อัตราการออมต่ำกว่า 20% และค่าที่พักเกิน 30% ของรายรับ
+- ตารางสัดส่วนแยกหมวด: % ของรายจ่าย, % ของรายรับ, เทียบช่วงก่อนหน้า, ค่าเฉลี่ย 3 เดือน และคำแนะนำว่าควรลดเท่าไร
+- วิเคราะห์รายหมวด: แนวโน้ม 12 เดือน, ค่าเฉลี่ย, รายการที่ใช้บ่อย, รายการใหญ่สุด พร้อมปุ่มตั้งงบจากค่าที่แนะนำ
+- ตารางเปรียบเทียบรายเดือน (6 หรือ 12 เดือน) แยกตามหมวด ไล่สีตามยอด มีค่าเฉลี่ยและ % เปลี่ยนแปลงเดือนล่าสุด ดาวน์โหลดเป็น CSV ได้
+
+**บันทึกรายการ**
+- แนบรูปสลิปโอนเงินหรือใบเสร็จตอนบันทึก ระบบอ่านยอดเงิน วันที่ ร้านค้าหรือผู้รับ และเดาหมวดให้อัตโนมัติ (OCR ของ Google Drive รองรับภาษาไทย) รูปเก็บไว้ในโฟลเดอร์ `MoneyPro Receipts` ใน Drive ของคุณ
+- หลายบัญชี (เงินสด ธนาคาร บัตรเครดิต e-Wallet ออมทรัพย์ ลงทุน) พร้อมยอดคงเหลือแต่ละบัญชี
+- รายการประจำ (ค่าเช่า ค่าอินเทอร์เน็ต เงินเดือน) บันทึกให้อัตโนมัติทุกเดือน และสร้างย้อนหลังได้
+- งบประมาณรายหมวด แจ้งเมื่อใช้เกิน 80% และเมื่อเกินงบ
+- หมวดหมู่แก้ไขได้ (ชื่อ ไอคอน สี กลุ่มจำเป็น/ตามใจ งบ)
+
+**อื่นๆ**
+- เลือกช่วงเวลา: รายเดือน, 3/6/12 เดือนล่าสุด, ปีนี้ หรือกำหนดเอง ทุกตัวเลขเทียบกับช่วงก่อนหน้าที่ยาวเท่ากัน
+- ค้นหาและกรองรายการ แบ่งหน้า ส่งออก CSV (เปิดใน Excel ภาษาไทยได้) และพิมพ์หรือบันทึกเป็น PDF
+- ธีมสว่าง/มืด/ตามระบบ
+- สำรอง Google Sheet อัตโนมัติทุกวัน เก็บ 14 ชุดล่าสุด
+- เปิด `src/Index.html` ในเบราว์เซอร์ได้เลยเป็นโหมดทดลองพร้อมข้อมูลตัวอย่าง 8 เดือน
+
+## โครงสร้างไฟล์
+
+| ไฟล์ | หน้าที่ |
+|---|---|
+| `src/Code.gs` | API ที่หน้าเว็บเรียก: `bootstrap`, `getTransactions`, `addTransaction`, `updateTransaction`, `deleteTransaction`, `getDashboardSummary`, บัญชี, หมวด, งบ, รายการประจำ, ตั้งค่า |
+| `src/Data.gs` | ชั้นข้อมูล: ตาราง, cache, สร้างชีตและข้อมูลเริ่มต้น |
+| `src/Jobs.gs` | รายการประจำ, สำรองข้อมูล, ตัวตั้งเวลารายวัน |
+| `src/Receipt.gs` | อัปโหลดรูป, OCR และตัวแยกยอดเงิน/วันที่/ร้านค้า |
+| `src/Index.html` | หน้าเว็บทั้งหมด |
+| `src/appsscript.json` | Manifest (เปิด Drive API ให้อัตโนมัติ) |
+| `tests/` | ทดสอบตัวอ่านสลิปและ backend: `node tests/receipt.test.js`, `node tests/backend.test.js` |
+
+## ชีตในฐานข้อมูล
+
+ระบบสร้างให้อัตโนมัติตอนเปิดครั้งแรก
+
+| ชีต | คอลัมน์ |
+|---|---|
+| Transactions | ID, Date (yyyy-MM-dd), Type (income/expense), Category (ID หมวด), Amount, Note, CreatedAt, UpdatedAt, Account (ID บัญชี), RecurringId, Attachment (ID ไฟล์ใน Drive) |
+| Accounts | ID, Name, Type, OpeningBalance, Color, Archived, SortOrder |
+| Categories | ID, Name, Type, Icon, Color, MonthlyBudget, Group (need/want/income), Archived, SortOrder |
+| Recurring | ID, Type, Category, Account, Amount, DayOfMonth, Note, Active, StartDate, LastRun, CreatedAt |
+| Settings | Key, Value |
+
+## ติดตั้งครั้งแรก
+
+1. สร้าง Google Sheet ใหม่ที่ [sheets.new](https://sheets.new) ตั้งชื่อเช่น `MoneyPro`
+2. เมนู **Extensions → Apps Script**
+3. ใน Editor ไปที่ ⚙️ **Project Settings** แล้วติ๊ก **Show "appsscript.json" manifest file in editor** จากนั้นกลับมาหน้า Editor
+4. สร้างไฟล์ให้ตรงกับใน `src/` แล้ววางเนื้อหาลงไป:
+   - `Code.gs` (มีอยู่แล้ว ให้แทนที่), `Data.gs`, `Jobs.gs`, `Receipt.gs` → กด **＋ → Script**
+   - `Index` → กด **＋ → HTML** (ตั้งชื่อว่า `Index` ไม่ต้องใส่ .html)
+   - `appsscript.json` → แทนที่ทั้งไฟล์ (บรรทัดนี้จะเปิด Drive API ที่ใช้อ่านสลิป)
+5. เลือกฟังก์ชัน `setup` แล้วกด **Run** อนุญาตสิทธิ์ (Sheets, Drive, Docs สำหรับ OCR และตัวตั้งเวลา)
+6. **Deploy → New deployment → Web app**, Execute as: **Me**, Who has access: **Only myself** → **Deploy** แล้วเปิด URL ที่ได้
+
+> ถ้าไม่ได้ใช้ `appsscript.json` ของ repo ให้เปิด Drive API เองที่ **Services → ＋ → Drive API → Add** ไม่อย่างนั้นแนบรูปได้แต่จะอ่านค่าไม่ได้
+
+## การอ่านสลิปและใบเสร็จ
+
+- รองรับ JPG, PNG, WEBP, GIF และ PDF ขนาดไม่เกิน 8MB รูปจากกล้องมือถือจะถูกย่อให้ด้านยาว 2000px ก่อนส่ง
+- อ่านได้: ยอดเงิน (เลือกบรรทัด "ยอดสุทธิ", "รวมทั้งสิ้น", "จำนวนเงิน", "Total" ก่อน และข้ามค่าธรรมเนียม VAT เงินทอน), วันที่ทั้งแบบไทย (24 ต.ค. 69, ๓ ตุลาคม ๒๕๖๙), แบบอังกฤษ และ dd/mm/yyyy (แปลง พ.ศ. เป็น ค.ศ. ให้), เวลา, ผู้รับหรือชื่อร้าน และหมวดจากคำค้น เช่น Grab, ปตท, Shopee, การไฟฟ้า
+- สลิปที่มีคำว่า "ได้รับเงิน" หรือ "เงินเข้า" จะตั้งเป็นรายรับให้
+- ช่องที่ระบบกรอกให้จะมีกรอบไฮไลต์ ตรวจสอบก่อนบันทึกทุกครั้ง และดูข้อความดิบที่อ่านได้ในฟอร์ม
+- ไฟล์ HEIC จาก iPhone บางรุ่นเบราว์เซอร์เปิดไม่ได้ ให้ถ่ายหน้าจอสลิปแทน
+- ลบรายการแล้วไฟล์แนบจะถูกย้ายไปถังขยะของ Drive ด้วย
+
+## Auto-deploy จาก GitHub (ไม่บังคับ)
+
+ทุกครั้งที่ push เข้า `main` GitHub Actions จะรันเทสต์ แล้วส่งโค้ดขึ้น Apps Script และอัปเดตเว็บแอปเวอร์ชันเดิม (URL ไม่เปลี่ยน)
+
+1. เปิด Apps Script API ที่ <https://script.google.com/home/usersettings>
+2. ในเครื่องตัวเอง: `npm i -g @google/clasp@2.4.2` แล้ว `clasp login` จะได้ไฟล์ `~/.clasprc.json`
+3. ใน GitHub repo ไปที่ **Settings → Secrets and variables → Actions** แล้วเพิ่ม
+   - `CLASPRC_JSON` = เนื้อหาทั้งไฟล์ `~/.clasprc.json`
+   - `SCRIPT_ID` = Script ID จาก Apps Script → Project Settings
+   - `DEPLOYMENT_ID` = จาก Deploy → Manage deployments (รหัสที่ขึ้นต้นด้วย AKfy...)
+4. Push เข้า `main` หรือกด **Run workflow** ในแท็บ Actions
+
+ถ้ายังไม่ได้ตั้ง secrets ขั้น deploy จะถูกข้ามไป แต่เทสต์ยังรันตามปกติ
+
+## อัปเดตเองโดยไม่ใช้ Auto-deploy
+
+วางโค้ดใหม่ใน Editor แล้วไปที่ **Deploy → Manage deployments → ✏️ → Version: New version → Deploy** URL เดิมจะใช้ต่อได้
