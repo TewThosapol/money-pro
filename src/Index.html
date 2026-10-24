@@ -227,12 +227,12 @@
 
 <!-- Tab bar (mobile) -->
 <nav class="tabbar md:hidden fixed bottom-0 inset-x-0 z-40 bg-surface border-t border-rule grid grid-cols-5 items-end" style="padding-bottom: env(safe-area-inset-bottom)">
-  <a href="#overview" class="tab-link" data-tab="overview"><i data-lucide="layout-dashboard"></i>ภาพรวม</a>
-  <a href="#analysis" class="tab-link" data-tab="analysis"><i data-lucide="chart-pie"></i>วิเคราะห์</a>
+  <button type="button" class="tab-link" data-tab="overview" data-go="overview"><i data-lucide="layout-dashboard"></i>ภาพรวม</button>
+  <button type="button" class="tab-link" data-tab="analysis" data-go="analysis"><i data-lucide="chart-pie"></i>วิเคราะห์</button>
   <button class="flex justify-center -mt-5" data-action="add" aria-label="บันทึกรายการ">
     <span class="w-14 h-14 rounded-2xl bg-ink text-surface grid place-items-center shadow-lg"><i data-lucide="plus" class="!w-6 !h-6"></i></span>
   </button>
-  <a href="#transactions" class="tab-link" data-tab="transactions"><i data-lucide="list"></i>รายการ</a>
+  <button type="button" class="tab-link" data-tab="transactions" data-go="transactions"><i data-lucide="list"></i>รายการ</button>
   <button class="tab-link" data-action="more" data-tab="more"><i data-lucide="menu"></i>เพิ่มเติม</button>
 </nav>
 
@@ -829,7 +829,7 @@ function renderOverview() {
 
     <div class="grid lg:grid-cols-5 gap-5">
       <div class="panel lg:col-span-3">
-        <div class="panel-h"><h2>สิ่งที่ควรรู้</h2><a href="#analysis" class="ml-auto text-sm text-accent hover:underline">ดูการวิเคราะห์ทั้งหมด</a></div>
+        <div class="panel-h"><h2>สิ่งที่ควรรู้</h2><button type="button" class="ml-auto text-sm text-accent hover:underline" data-go="analysis">ดูการวิเคราะห์ทั้งหมด</button></div>
         <div class="panel-b !pt-0">${insights.slice(0, 4).map(insightRow).join('')}</div>
       </div>
       <div class="panel lg:col-span-2">
@@ -868,12 +868,12 @@ function renderOverview() {
 
     <div class="grid lg:grid-cols-5 gap-5">
       <div class="panel lg:col-span-3">
-        <div class="panel-h"><h2>รายการล่าสุด</h2><a href="#transactions" class="ml-auto text-sm text-accent hover:underline">ดูทั้งหมด</a></div>
+        <div class="panel-h"><h2>รายการล่าสุด</h2><button type="button" class="ml-auto text-sm text-accent hover:underline" data-go="transactions">ดูทั้งหมด</button></div>
         <div class="panel-b !pt-0">${recent.length ? `<div class="divide-y divide-rule/70">${recent.map(txItem).join('')}</div>` : emptyState('inbox', 'ยังไม่มีรายการ', 'เริ่มจากบันทึกรายจ่ายหรือแนบสลิปรายการแรก', '<button class="btn btn-primary mt-4" data-action="add"><i data-lucide="plus"></i>บันทึกรายการ</button>')}</div>
       </div>
       <div class="panel lg:col-span-2">
-        <div class="panel-h"><h2>งบประมาณ</h2><a href="#budgets" class="ml-auto text-sm text-accent hover:underline">จัดการ</a></div>
-        <div class="panel-b !pt-1">${budgetRows(cur, P, 5) || emptyState('target', 'ยังไม่ได้ตั้งงบ', 'ตั้งงบรายเดือนให้หมวดที่อยากคุม', '<a href="#budgets" class="btn btn-ghost mt-4">ตั้งงบประมาณ</a>')}</div>
+        <div class="panel-h"><h2>งบประมาณ</h2><button type="button" class="ml-auto text-sm text-accent hover:underline" data-go="budgets">จัดการ</button></div>
+        <div class="panel-b !pt-1">${budgetRows(cur, P, 5) || emptyState('target', 'ยังไม่ได้ตั้งงบ', 'ตั้งงบรายเดือนให้หมวดที่อยากคุม', '<button type="button" class="btn btn-ghost mt-4" data-go="budgets">ตั้งงบประมาณ</button>')}</div>
       </div>
     </div>
   </div>`;
@@ -1708,7 +1708,7 @@ function openRecForm(r) {
 /* ---------- Mobile "more" sheet ---------- */
 function openMoreSheet() {
   openModal(`${modalHead('เมนู')}<div class="p-3">${['budgets', 'recurring', 'settings'].map((v) => `
-    <a href="#${v}" class="nav-link !py-3" data-close><i data-lucide="${VIEWS[v].icon}"></i>${VIEWS[v].title}</a>`).join('')}</div>`);
+    <button type="button" class="nav-link !py-3 w-full" data-go="${v}"><i data-lucide="${VIEWS[v].icon}"></i>${VIEWS[v].title}</button>`).join('')}</div>`);
 }
 
 /* =====================================================================
@@ -1733,9 +1733,17 @@ function render() {
   icons();
 }
 
+/** เปลี่ยนหน้าภายในแอป (ไม่ใช้ลิงก์ # เพราะใน Apps Script ลิงก์จะพาออกนอกแอป) */
+function go(v) {
+  if (!VIEWS[v]) v = 'overview';
+  if (v !== S.view && window.google && google.script && google.script.history) {
+    try { google.script.history.push({ view: v }, {}, v); } catch (e) {}
+  }
+  S.view = v;
+  route();
+}
+
 function route() {
-  const h = location.hash.replace('#', '');
-  S.view = VIEWS[h] ? h : 'overview';
   closeModal();
   render();
   window.scrollTo(0, 0);
@@ -1763,7 +1771,9 @@ function applyTheme() {
 }
 
 function bind() {
-  window.addEventListener('hashchange', route);
+  if (IS_GAS && google.script.history) {
+    google.script.history.setChangeHandler((e) => { const v = (e.state && e.state.view) || e.location.hash || 'overview'; S.view = VIEWS[v] ? v : 'overview'; route(); });
+  }
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applyTheme(); render(); });
 
   $('#periodSel').addEventListener('change', (e) => {
@@ -1782,6 +1792,8 @@ function bind() {
   document.addEventListener('click', async (e) => {
     const el = (sel) => e.target.closest(sel);
     if (el('[data-close]')) { closeModal(); return; }
+    const g = el('[data-go]');
+    if (g) { go(g.dataset.go); return; }
     const act = el('[data-action]');
     if (act) {
       const a = act.dataset.action;
@@ -1823,7 +1835,7 @@ function bind() {
     const fc = el('[data-focus-cat]');
     if (fc && !el('button[data-edit-tx]')) {
       S.focusCat = fc.dataset.focusCat;
-      if (S.view !== 'analysis') { location.hash = 'analysis'; setTimeout(() => $('#catDeep') && $('#catDeep').scrollIntoView({ behavior: 'smooth' }), 80); }
+      if (S.view !== 'analysis') { go('analysis'); setTimeout(() => $('#catDeep') && $('#catDeep').scrollIntoView({ behavior: 'smooth' }), 80); }
       else { renderCatDeep(); $('#catDeep').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
       return;
     }
@@ -1871,7 +1883,7 @@ function bind() {
 (async function init() {
   applyTheme();
   if (!IS_GAS) $('#demoBanner').classList.remove('hidden');
-  $('#sideNav').innerHTML = Object.entries(VIEWS).map(([k, v]) => `<a href="#${k}" class="nav-link" data-nav="${k}"><i data-lucide="${v.icon}"></i>${v.title}</a>`).join('');
+  $('#sideNav').innerHTML = Object.entries(VIEWS).map(([k, v]) => `<button type="button" class="nav-link w-full" data-nav="${k}" data-go="${k}"><i data-lucide="${v.icon}"></i>${v.title}</button>`).join('');
   S.periodKey = 'm:' + monthOf(S.today);
   bind();
   icons();
