@@ -8,7 +8,7 @@ vm.createContext(ctx);
 for (const f of ['Data.gs', 'Receipt.gs']) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', f), 'utf8'), ctx, { filename: f });
 }
-const parse = (text) => vm.runInContext('parseReceiptText_', ctx)(text, vm.runInContext('DEFAULT_CATEGORIES', ctx));
+const parse = (text, now) => vm.runInContext('parseReceiptText_', ctx)(text, vm.runInContext('DEFAULT_CATEGORIES', ctx), now ? now + 'T12:00:00' : undefined);
 
 const cases = [
   {
@@ -79,6 +79,17 @@ Payment date Oct 18, 2026`,
     expect: { amount: 589, date: '2026-10-18', category: 'shopping' },
   },
   {
+    name: 'Bangkok Bank bill payment (real Tesseract output, garbled month)',
+    text: "Q Bangkok Bank\nรายการสําเร็จ\n24 0.n.69,15:35\nจํานวนเงิน\n68.40 THB\nจาก          @ แฉ.ส.จุทารัตน์\n909-0-%%%472\nธนาคารกรุงเทพ\nไปที่            ๕    646 WATSONS CENTRAL PIN\nBiller ID:010753600031501\nรหัสร้านค้า\n401014643195001\nรหัสธุรกรรม (ถ้ามี)\nEDC17928308919569802\nค่าธรรมเนียม 0.00 THB\nหมายเลขอ้างอิง Thy  [=]\n467626                                = PL\nก                                    =    ห่    ra)\nเลขทีอ้างอิง                                         ร d\n20261024153503033667335AD        [=]  Fri her\nสแกนเพื่อตรวจสอบ",
+    now: '2026-10-25',
+    expect: { amount: 68.4, date: '2026-10-24', merchant: '646 WATSONS CENTRAL PIN', type: 'expense', category: 'health' },
+  },
+  {
+    name: 'Thai short month followed by colon (Tesseract variant)',
+    text: 'รายการสําเร็จ\n24 ต.ค:69:15:35\nจํานวนเงิน\n\n68.40า๒๒\nไปที่ ๑ 646 WATSONS CENTRAL PIN',
+    expect: { amount: 68.4, date: '2026-10-24', time: '15:35', merchant: '646 WATSONS CENTRAL PIN' },
+  },
+  {
     name: 'Garbage text → nothing found',
     text: `hello world`,
     expect: { amount: null, date: null },
@@ -87,7 +98,7 @@ Payment date Oct 18, 2026`,
 
 let fail = 0;
 for (const c of cases) {
-  const got = parse(c.text);
+  const got = parse(c.text, c.now);
   const bad = Object.keys(c.expect).filter((k) => got[k] !== c.expect[k]);
   if (bad.length) {
     fail++;

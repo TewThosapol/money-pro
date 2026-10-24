@@ -500,7 +500,8 @@ const Demo = (() => {
     runRecurringNow() { return runRecurring(); },
     saveSettings(s) { Object.assign(db.settings, s); save(); return db.settings; },
     backupNow() { throw new Error('การสำรองข้อมูลใช้ได้หลัง Deploy บน Google Apps Script'); },
-    uploadReceipt() { throw new Error('การอ่านสลิปใช้ได้หลัง Deploy บน Google Apps Script (ใช้ OCR ของ Google Drive)'); },
+    uploadReceipt() { throw new Error('การแนบสลิปใช้ได้หลัง Deploy บน Google Apps Script (รูปเก็บใน Google Drive)'); },
+    parseReceipt() { return {}; },
     discardReceipt() { return { ok: true }; },
   };
   return api;
@@ -1487,24 +1488,42 @@ function openTxForm(t) {
     async function handleFile(file) {
       if (!file) return;
       if (!/^image\/|^application\/pdf$/.test(file.type)) { toast('รองรับเฉพาะรูปภาพหรือ PDF', 'error'); return; }
-      show('rcptBusy'); $('#rcptBusyText', m).textContent = 'กำลังอัปโหลดและอ่านข้อมูลจากรูป';
+      const busy = (t) => { $('#rcptBusyText', m).textContent = t; };
+      show('rcptBusy'); busy('กำลังเตรียมรูป');
       try {
         const prepared = await prepareImage(file);
         if (prepared.preview) { $('#rcptThumb', m).src = prepared.preview; $('#rcptThumb', m).classList.remove('hidden'); $('#rcptIcon', m).classList.add('hidden'); }
         else { $('#rcptThumb', m).classList.add('hidden'); $('#rcptIcon', m).classList.remove('hidden'); }
-        const res = await api('uploadReceipt', { data: prepared.base64, mimeType: prepared.mime, name: file.name });
+
+        // อัปโหลดเก็บใน Drive และอ่านข้อความในเบราว์เซอร์ไปพร้อมกัน
+        const upload = api('uploadReceipt', { data: prepared.base64, mimeType: prepared.mime, name: file.name })
+          .then((r) => ({ ok: true, r }), (e) => ({ ok: false, e }));
+        let text = '', ocrError = '';
+        if (prepared.mime === 'application/pdf') {
+          ocrError = 'อ่านอัตโนมัติได้เฉพาะรูปภาพ ไฟล์ PDF แนบไว้ให้แล้ว';
+        } else {
+          try {
+            text = await ocrImage(prepared.ocr || prepared.preview, (pct) => busy(pct == null ? 'กำลังโหลดตัวอ่านภาษาไทย (ครั้งแรกเท่านั้น)' : `กำลังอ่านข้อความ ${pct}%`));
+          } catch (e) { ocrError = 'อ่านข้อความไม่สำเร็จ: ' + e.message; }
+        }
+        busy('กำลังบันทึกรูป');
+        const up = await upload;
+        if (!up.ok) throw up.e;
+        const res = up.r;
         if (st.uploadedNew) api('discardReceipt', st.uploadedNew).catch(() => {});
         st.attachment = res.fileId; st.uploadedNew = res.fileId;
-        const p = res.parsed || {};
+
+        let p = {};
+        if (text.trim()) { busy('กำลังแยกข้อมูล'); try { p = await api('parseReceipt', text); } catch (e) { ocrError = e.message; } }
         const filled = [];
         if (p.type && p.type !== st.type) setType(p.type);
         if (p.amount) { $('#tAmount', m).value = p.amount; mark($('#tAmount', m)); filled.push('ยอดเงิน'); }
         if (p.date) { $('#tDate', m).value = p.date; mark($('#tDate', m)); filled.push('วันที่'); }
         if (p.category && S.catById[p.category] && S.catById[p.category].type === st.type) { $('#tCat', m).value = p.category; mark($('#tCat', m)); filled.push('หมวด'); }
         if (p.merchant && !$('#tNote', m).value) { $('#tNote', m).value = p.merchant; mark($('#tNote', m)); filled.push('ร้านค้า'); }
-        $('#rcptTitle', m).textContent = filled.length ? `อ่านได้: ${filled.join(', ')}` : (res.ocrError ? 'แนบรูปแล้ว แต่อ่านข้อความไม่ได้' : 'แนบรูปแล้ว ไม่พบข้อมูลที่อ่านได้');
-        $('#rcptSub', m).innerHTML = res.ocrError ? esc(res.ocrError) : (filled.length ? 'ตรวจสอบช่องที่ไฮไลต์ก่อนบันทึก' : 'กรอกข้อมูลเองได้เลย');
-        if (res.text) { $('#rcptText', m).textContent = res.text; $('#rcptTextBox', m).classList.remove('hidden'); }
+        $('#rcptTitle', m).textContent = filled.length ? `อ่านได้: ${filled.join(', ')}` : (ocrError ? 'แนบไฟล์แล้ว' : 'แนบรูปแล้ว ไม่พบข้อมูลที่อ่านได้');
+        $('#rcptSub', m).textContent = ocrError || (filled.length ? 'ตรวจสอบช่องที่ไฮไลต์ก่อนบันทึก' : 'กรอกข้อมูลเองได้เลย');
+        if (text) { $('#rcptText', m).textContent = text; $('#rcptTextBox', m).classList.remove('hidden'); }
         show('rcptDone');
       } catch (e) {
         show(st.attachment ? 'rcptDone' : 'rcptEmpty');
@@ -1550,6 +1569,45 @@ function openTxForm(t) {
   });
 }
 
+/* ---------- OCR ในเบราว์เซอร์ (Tesseract.js, ภาษาไทย + อังกฤษ) ---------- */
+// Apps Script ตัดข้อความหลังเครื่องหมายทับสองตัวในสคริปต์ จึงต่อ URL ด้วย join
+const TESS_URL = ['https:', '', 'cdn.jsdelivr.net', 'npm', 'tesseract.js@5.1.1', 'dist', 'tesseract.min.js'].join('/');
+const OCR = { worker: null, loading: null, onProgress: null };
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const el = document.createElement('script');
+    el.src = src; el.onload = resolve; el.onerror = () => reject(new Error('โหลดตัวอ่านข้อความไม่สำเร็จ ตรวจสอบอินเทอร์เน็ต'));
+    document.head.appendChild(el);
+  });
+}
+async function getOcrWorker() {
+  if (OCR.worker) return OCR.worker;
+  if (!OCR.loading) {
+    OCR.loading = (async () => {
+      if (!window.Tesseract) await loadScript(TESS_URL);
+      OCR.worker = await Tesseract.createWorker(['tha', 'eng'], 1, {
+        logger: (msg) => { if (OCR.onProgress && msg.status === 'recognizing text') OCR.onProgress(Math.round(msg.progress * 100)); },
+      });
+      return OCR.worker;
+    })().catch((e) => { OCR.loading = null; throw e; });
+  }
+  return OCR.loading;
+}
+/** อ่านข้อความจากรูป (dataURL) คืนค่าเป็นข้อความ จำกัดเวลา 90 วินาที */
+async function ocrImage(dataUrl, onProgress) {
+  OCR.onProgress = onProgress;
+  if (!OCR.worker) onProgress(null);
+  const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('ใช้เวลานานเกินไป')), 90000));
+  try {
+    const worker = await Promise.race([getOcrWorker(), timeout]);
+    onProgress(0);
+    const res = await Promise.race([worker.recognize(dataUrl), timeout]);
+    return (res && res.data && res.data.text) || '';
+  } finally {
+    OCR.onProgress = null;
+  }
+}
+
 /** ย่อรูปให้ด้านยาวไม่เกิน 2000px (คมพอสำหรับ OCR) แล้วแปลงเป็น base64 */
 function prepareImage(file) {
   return new Promise((resolve, reject) => {
@@ -1570,7 +1628,15 @@ function prepareImage(file) {
         ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
         ctx.drawImage(img, 0, 0, c.width, c.height);
         const out = c.toDataURL('image/jpeg', 0.88);
-        resolve({ base64: out.split(',')[1], mime: 'image/jpeg', preview: out });
+        // สำเนาสำหรับ OCR: ไม่บีบอัด และขยายรูปเล็กให้กว้างอย่างน้อย 1400px อ่านภาษาไทยได้แม่นขึ้น
+        const os = Math.min(2400 / Math.max(img.width, img.height), Math.max(1, 1400 / img.width));
+        const oc = document.createElement('canvas');
+        oc.width = Math.round(img.width * os); oc.height = Math.round(img.height * os);
+        const octx = oc.getContext('2d');
+        octx.fillStyle = '#fff'; octx.fillRect(0, 0, oc.width, oc.height);
+        octx.imageSmoothingQuality = 'high';
+        octx.drawImage(img, 0, 0, oc.width, oc.height);
+        resolve({ base64: out.split(',')[1], mime: 'image/jpeg', preview: out, ocr: oc.toDataURL('image/png') });
       };
       img.onerror = () => reject(new Error('เปิดรูปนี้ไม่ได้ (ถ้าเป็นไฟล์ HEIC ลองถ่ายหน้าจอหรือแปลงเป็น JPG)'));
       img.src = dataUrl;

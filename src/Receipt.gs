@@ -13,8 +13,10 @@ const RECEIPT_MAX_BYTES = 8 * 1024 * 1024;
 const RECEIPT_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
 
 /**
- * อัปโหลดรูปสลิป/ใบเสร็จแล้วอ่านค่า
- * @param {{data: string, mimeType: string, name?: string}} p  data = base64 (ไม่มี prefix data:)
+ * อัปโหลดรูปสลิป/ใบเสร็จไปเก็บใน Drive
+ * หน้าเว็บอ่านข้อความเองด้วย Tesseract แล้วเรียก parseReceipt() ดังนั้นปกติไม่ต้องใช้ OCR ของ Drive
+ * (OCR ของ Drive มีโควตาต่ำ เมื่อเกินโควตาจะรอนานหลายนาที) ส่ง ocr: true เพื่อบังคับใช้
+ * @param {{data: string, mimeType: string, name?: string, ocr?: boolean}} p  data = base64 (ไม่มี prefix data:)
  */
 function uploadReceipt(p) {
   if (!p || !p.data) throw new Error('ไม่พบไฟล์รูป');
@@ -32,10 +34,12 @@ function uploadReceipt(p) {
 
   let text = '';
   let ocrError = '';
-  try {
-    text = ocr_(blob);
-  } catch (e) {
-    ocrError = String(e && e.message || e);
+  if (p.ocr === true) {
+    try {
+      text = ocr_(blob);
+    } catch (e) {
+      ocrError = String(e && e.message || e);
+    }
   }
   const cats = tRead_('Categories').filter((c) => !c.archived);
   return {
@@ -45,6 +49,11 @@ function uploadReceipt(p) {
     ocrError: ocrError,
     parsed: parseReceiptText_(text, cats),
   };
+}
+
+/** แยกยอดเงิน/วันที่/ร้านค้า/หมวด จากข้อความที่หน้าเว็บอ่านได้ */
+function parseReceipt(text) {
+  return parseReceiptText_(String(text || '').slice(0, 20000), tRead_('Categories').filter((c) => !c.archived));
 }
 
 /** ลบรูปที่อัปโหลดแล้วแต่ไม่ได้บันทึกรายการ */
@@ -140,13 +149,13 @@ const CATEGORY_KEYWORDS = {
   invest_inc: ['ดอกเบี้ย', 'interest', 'เงินปันผล', 'dividend'],
 };
 
-function parseReceiptText_(raw, cats) {
+function parseReceiptText_(raw, cats, now) {
   const text = normalizeOcr_(raw || '');
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
   const type = /(รับเงิน|เงินเข้า|โอนเข้า|ได้รับเงิน|received|deposit|incoming)/i.test(text) &&
     !/(โอนเงินสำเร็จ|ชำระเงินสำเร็จ|จ่ายบิลสำเร็จ|payment successful)/i.test(text) ? 'income' : 'expense';
   const amount = findAmount_(lines);
-  const date = findDate_(text);
+  const date = findDate_(text, now);
   const time = findTime_(text);
   const merchant = findMerchant_(lines);
   const category = guessCategory_(text, type, cats || []);
@@ -163,6 +172,8 @@ function parseReceiptText_(raw, cats) {
 
 function normalizeOcr_(s) {
   return String(s)
+    .replace(/\u0E4D\u0E32/g, '\u0E33') // นิคหิต + สระอา (OCR มักแยก) → สระอำ
+    .replace(/([\u0E01-\u0E4E])[ \t]+(?=[\u0E01-\u0E4E])/g, '$1') // OCR บางรุ่นเว้นวรรคระหว่างตัวอักษรไทย
     .replace(/[๐-๙]/g, (d) => String('๐๑๒๓๔๕๖๗๘๙'.indexOf(d)))
     .replace(/\r/g, '')
     .replace(/[ \t ]+/g, ' ')
@@ -213,8 +224,8 @@ function findAmount_(lines) {
   return candidates[0].v;
 }
 
-function findDate_(text) {
-  const now = new Date();
+function findDate_(text, nowArg) {
+  const now = nowArg ? new Date(nowArg) : new Date();
   const maxYear = now.getFullYear() + 1;
   const toCE = (y) => {
     y = Number(y);
@@ -229,7 +240,7 @@ function findDate_(text) {
   const thAlts = TH_MONTHS_LONG.map((m, i) => ({ re: m, i: i }))
     .concat(TH_MONTHS_SHORT.map((m, i) => ({ re: loose(m), i: i })));
   for (let k = 0; k < thAlts.length; k++) {
-    const re = new RegExp('(\\d{1,2})\\s*' + thAlts[k].re + '\\s*(\\d{2,4})');
+    const re = new RegExp('(\\d{1,2})\\s*' + thAlts[k].re + '[\\s:.,]*(\\d{2,4})');
     const m = text.match(re);
     if (m) {
       const y = toCE(m[2]), d = Number(m[1]), mo = thAlts[k].i + 1;
@@ -257,6 +268,15 @@ function findDate_(text) {
     const y = toCE(m[3]), mo = Number(m[2]), d = Number(m[1]);
     if (ok(y, mo, d)) return fmt(y, mo, d);
   }
+  // OCR อ่านชื่อเดือนเพี้ยน (เช่น "ต.ค." เป็น "0.n.") แต่ยังเห็น วัน ปี และเวลา:
+  // ใช้เดือนล่าสุดที่วันนั้นยังไม่เกินวันนี้ (สลิปส่วนใหญ่บันทึกไม่นานหลังโอน)
+  const g = text.match(/(?:^|\s)(\d{1,2})\s+\S{1,3}\.\s?\S{1,3}\.?\s*(\d{2}|25\d{2}|20\d{2})\s*[,\s]\s*\d{1,2}[:.]\d{2}/);
+  if (g) {
+    const d = Number(g[1]), y = toCE(g[2]);
+    let mo = now.getMonth() + 1, yy = now.getFullYear();
+    if (d > now.getDate()) { mo -= 1; if (mo < 1) { mo = 12; yy -= 1; } }
+    if (y === yy && ok(yy, mo, d)) return fmt(yy, mo, d);
+  }
   return null;
 }
 
@@ -269,19 +289,21 @@ function findTime_(text) {
 }
 
 function findMerchant_(lines) {
-  const marker = /^(ไปยัง|ถึง|ผู้รับ(?:เงิน)?|โอนให้|to|merchant|ร้านค้า|ชื่อร้าน|payee|biller)(?![A-Za-z])\s*[:：]?\s*(.*)$/i;
+  const marker = /^(ไปยัง|ไปที่|ถึง|ผู้รับ(?:เงิน)?|โอนให้|ชำระให้|to|merchant|ร้านค้า|ชื่อร้าน|payee|biller)(?![A-Za-z])\s*[:：]?\s*(.*)$/i;
   const junk = /(สำเร็จ|ใบเสร็จ|ใบกำกับ|โอนเงิน|เลขที่|รหัส|วันที่|เวลา|จำนวน|บาท|ค่าธรรมเนียม|ธนาคาร|สาขา|โทร|พร้อมเพย์|www\.|http|@|x{3,}|\d{3}-\d|\b(successful|receipt|tax\s*invoice|transfer|ref|date|time|amount|thb|fee|bank|branch|tel|scan|qr|promptpay|total|order)\b)/i;
   const good = (s) => s && s.length >= 2 && s.length <= 60 && /[A-Za-zก-๙]/.test(s) && !junk.test(s) &&
-    !/^\d/.test(s) && (s.replace(/[^A-Za-zก-๙]/g, '').length >= 2);
+    (s.replace(/[^A-Za-zก-๙]/g, '').length >= 3);
+  // ตัดสัญลักษณ์/ไอคอนที่ OCR อ่านเป็นตัวอักษรเดี่ยวหน้าชื่อ เช่น "5 646 WATSONS" → "646 WATSONS"
+  const clean = (s) => String(s || '').replace(/^(\S\s+)+(?=\S{2,})/, '').replace(/\s{2,}/g, ' ').trim();
   for (let i = 0; i < lines.length; i++) {
     const m = lines[i].match(marker);
     if (m) {
-      if (good(m[2])) return m[2].trim();
-      if (good(lines[i + 1])) return lines[i + 1].trim();
+      if (good(clean(m[2]))) return clean(m[2]);
+      if (good(clean(lines[i + 1]))) return clean(lines[i + 1]);
     }
   }
   for (let i = 0; i < Math.min(lines.length, 6); i++) {
-    if (good(lines[i])) return lines[i].trim();
+    if (good(clean(lines[i]))) return clean(lines[i]);
   }
   return null;
 }
