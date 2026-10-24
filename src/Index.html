@@ -140,7 +140,7 @@
 
   /* แถบการจัดสรรรายได้ (จุดเด่นของหน้าภาพรวม) */
   .alloc { position: relative; height: 46px; border-radius: 10px; overflow: hidden; display:flex; background: rgb(var(--rule) / .7); }
-  .alloc > div { height:100%; display:flex; align-items:center; padding: 0 .7rem; color:#fff; font-size:.82rem; font-weight:600; overflow:hidden; white-space:nowrap; transition: width .5s cubic-bezier(.2,.8,.2,1); }
+  .alloc > div { height:100%; min-width:0; flex-shrink:0; display:flex; align-items:center; padding: 0 .7rem; color:#fff; font-size:.82rem; font-weight:600; overflow:hidden; white-space:nowrap; transition: width .5s cubic-bezier(.2,.8,.2,1); }
   .alloc-marks { position: relative; height: 22px; }
   .alloc-marks span { position:absolute; top:0; transform: translateX(-50%); font-size:.72rem; color: rgb(var(--muted)); white-space:nowrap; }
   .alloc-marks span::before { content:''; position:absolute; left:50%; top:-52px; height:52px; border-left: 1.5px dashed rgb(var(--ink) / .55); }
@@ -909,8 +909,8 @@ function allocationPanel(cur, P) {
     <div class="panel-h"><h2>เงินรายรับถูกใช้ไปอย่างไร</h2><span class="sub ml-auto hidden sm:inline">เทียบเกณฑ์ 50/30/20</span></div>
     <div class="panel-b">
       <div class="alloc" role="img" aria-label="จำเป็น ${pct(cur.need / cur.income)} ตามใจ ${pct(cur.want / cur.income)} เหลือเก็บ ${pct(saved / cur.income)}">
-        <div style="width:${w(cur.need)};background:rgb(var(--need))">${lbl(cur.need)}</div>
-        <div style="width:${w(cur.want)};background:rgb(var(--want))">${lbl(cur.want)}</div>
+        ${cur.need > 0 ? `<div style="width:${w(cur.need)};background:rgb(var(--need))">${lbl(cur.need)}</div>` : ''}
+        ${cur.want > 0 ? `<div style="width:${w(cur.want)};background:rgb(var(--want))">${lbl(cur.want)}</div>` : ''}
         ${saved > 0 ? `<div style="width:${w(saved)};background:rgb(var(--income))">${lbl(saved)}</div>` : ''}
       </div>
       <div class="alloc-marks" aria-hidden="true">
