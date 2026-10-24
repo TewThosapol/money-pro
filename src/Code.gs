@@ -318,6 +318,7 @@ function allTransactions_() {
     t.date = String(t.date).slice(0, 10);
     if (t.type === 'transfer') {
       t.category = '';
+      t.sub = '';
       if (!accIds[t.toAccount]) t.toAccount = fallbackAcc;
     } else {
       if (!catIds[t.category]) t.category = t.type === 'income' ? 'other_inc' : 'other_exp';
@@ -375,6 +376,7 @@ function validateTx_(d) {
   return {
     date: date, type: type, category: catId, account: acc.id, toAccount: toAccount, amount: amount,
     note: String(d.note || '').trim().slice(0, 500), attachment: attachment,
+    sub: type === 'transfer' ? '' : String(d.sub || '').trim().slice(0, 40),
   };
 }
 

@@ -8,7 +8,7 @@
 const APP_NAME = 'MoneyPro';
 
 const TABLES = {
-  Transactions: ['ID', 'Date', 'Type', 'Category', 'Amount', 'Note', 'CreatedAt', 'UpdatedAt', 'Account', 'RecurringId', 'Attachment', 'ToAccount'],
+  Transactions: ['ID', 'Date', 'Type', 'Category', 'Amount', 'Note', 'CreatedAt', 'UpdatedAt', 'Account', 'RecurringId', 'Attachment', 'ToAccount', 'Sub'],
   Accounts:     ['ID', 'Name', 'Type', 'OpeningBalance', 'Color', 'Archived', 'SortOrder'],
   Categories:   ['ID', 'Name', 'Type', 'Icon', 'Color', 'MonthlyBudget', 'Group', 'Archived', 'SortOrder'],
   Recurring:    ['ID', 'Type', 'Category', 'Account', 'Amount', 'DayOfMonth', 'Note', 'Active', 'StartDate', 'LastRun', 'CreatedAt', 'ToAccount'],

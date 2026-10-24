@@ -22,6 +22,7 @@
 - หลายบัญชี (เงินสด ธนาคาร บัตรเครดิต e-Wallet ออมทรัพย์ ลงทุน) พร้อมยอดคงเหลือแต่ละบัญชี
 - รายการประจำ (ค่าเช่า ค่าอินเทอร์เน็ต เงินเดือน) บันทึกให้อัตโนมัติทุกเดือน และสร้างย้อนหลังได้
 - งบประมาณรายหมวด แจ้งเมื่อใช้เกิน 80% และเมื่อเกินงบ
+- หมวดอาหารเลือกมื้อได้ (เช้า กลางวัน เย็น ของว่าง/เครื่องดื่ม) ระบบเลือกให้ตามเวลาที่บันทึกหรือเวลาบนสลิป และแยกยอดตามมื้อในหน้าวิเคราะห์
 - หมวดหมู่แก้ไขได้ (ชื่อ ไอคอน สี กลุ่มจำเป็น/ตามใจ งบ)
 
 **อื่นๆ**
@@ -50,7 +51,7 @@
 
 | ชีต | คอลัมน์ |
 |---|---|
-| Transactions | ID, Date (yyyy-MM-dd), Type (income/expense/transfer), Category (ID หมวด ว่างถ้าเป็นการโอน), Amount, Note, CreatedAt, UpdatedAt, Account (ID บัญชี), RecurringId, Attachment (ID ไฟล์ใน Drive), ToAccount (บัญชีปลายทางของการโอน) |
+| Transactions | ID, Date (yyyy-MM-dd), Type (income/expense/transfer), Category (ID หมวด ว่างถ้าเป็นการโอน), Amount, Note, CreatedAt, UpdatedAt, Account (ID บัญชี), RecurringId, Attachment (ID ไฟล์ใน Drive), ToAccount (บัญชีปลายทางของการโอน), Sub (หมวดย่อย เช่น มื้ออาหาร) |
 | Accounts | ID, Name, Type, OpeningBalance, Color, Archived, SortOrder |
 | Categories | ID, Name, Type, Icon, Color, MonthlyBudget, Group (need/want/income), Archived, SortOrder |
 | Recurring | ID, Type, Category, Account, Amount, DayOfMonth, Note, Active, StartDate, LastRun, CreatedAt, ToAccount |

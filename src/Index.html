@@ -265,6 +265,19 @@ const PAGE_SIZE = 25;
 // Apps Script ตัดข้อความแบบคอมเมนต์ทิ้งแม้อยู่ในสตริง จึงห้ามมีเครื่องหมายเปิด/ปิดคอมเมนต์ในสตริง
 const RCPT_ACCEPT = ['image', '*,application', 'pdf'].join('/');
 const SAVING_TYPES = ['saving', 'invest'];
+/** หมวดย่อย (เลือกเพิ่มในฟอร์มเมื่อเลือกหมวดนี้) */
+const SUBCATS = { food: ['อาหารเช้า', 'อาหารกลางวัน', 'อาหารเย็น', 'ของว่าง/เครื่องดื่ม'] };
+/** เดามื้อจากเวลา hh:mm */
+function mealByTime(hhmm) {
+  const [h, m] = String(hhmm || '').split(':').map(Number);
+  if (!isFinite(h)) return '';
+  const t = h * 60 + (m || 0);
+  if (t >= 300 && t < 630) return 'อาหารเช้า';
+  if (t >= 630 && t < 900) return 'อาหารกลางวัน';
+  if (t >= 1020 && t < 1290) return 'อาหารเย็น';
+  return 'ของว่าง/เครื่องดื่ม';
+}
+const nowHHMM = () => { const d = new Date(); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); };
 const TRANSFER_CAT = { id: '', name: 'โอน/ออม', icon: 'arrow-left-right', color: '#64748B', type: 'transfer', group: '' };
 // Apps Script ตัดข้อความหลังเครื่องหมายทับสองตัวในสคริปต์ทิ้ง จึงต่อ URL ด้วย join แทน
 const driveUrl = (id) => ['https:', '', 'drive.google.com', 'file', 'd', encodeURIComponent(id), 'view'].join('/');
@@ -343,7 +356,7 @@ function toast(msg, kind) {
 const IS_GAS = typeof google !== 'undefined' && google.script && google.script.run;
 
 const Demo = (() => {
-  const KEY = 'moneypro_demo_v2';
+  const KEY = 'moneypro_demo_v3';
   let db = null;
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} };
   const id = (p) => p + '-' + Math.random().toString(36).slice(2, 12).toUpperCase();
@@ -398,8 +411,12 @@ const Demo = (() => {
       add(d(12), 'expense', 'bills', 419, 'Netflix', 'acc_bank');
       add(d(15), 'expense', 'bills', 899, 'ค่าโทรศัพท์', 'acc_bank');
       const meals = 18 + Math.floor(rnd() * 10) + (m === 1 ? 10 : 0);
-      for (let i = 0; i < meals; i++) add(d(1 + Math.floor(rnd() * 28)), 'expense', 'food', 60 + rnd() * (rnd() < 0.15 ? 1200 : 320),
-        pick(['ข้าวกลางวัน', 'กาแฟ', 'GrabFood', 'ร้านอาหารญี่ปุ่น', 'ซูเปอร์มาร์เก็ต', 'ชาบู', 'ข้าวเย็น']), pick(['acc_cash', 'acc_bank', 'acc_bank', 'acc_bank']));
+      for (let i = 0; i < meals; i++) {
+        const [note, sub, base] = pick([['ข้าวมันไก่', 'อาหารกลางวัน', 70], ['กาแฟ', 'ของว่าง/เครื่องดื่ม', 65], ['GrabFood', 'อาหารเย็น', 180],
+          ['ร้านอาหารญี่ปุ่น', 'อาหารเย็น', 450], ['โจ๊ก', 'อาหารเช้า', 50], ['ข้าวกล่องเซเว่น', 'อาหารกลางวัน', 55], ['ชาบู', 'อาหารเย็น', 520], ['ชานม', 'ของว่าง/เครื่องดื่ม', 55], ['ขนมปัง+กาแฟ', 'อาหารเช้า', 90]]);
+        add(d(1 + Math.floor(rnd() * 28)), 'expense', 'food', base * (0.8 + rnd() * 0.6), note, pick(['acc_cash', 'acc_bank', 'acc_bank', 'acc_bank']));
+        tx[tx.length - 1] && tx[tx.length - 1].note === note && (tx[tx.length - 1].sub = sub);
+      }
       for (let i = 0; i < 10; i++) add(d(1 + Math.floor(rnd() * 28)), 'expense', 'transport', 30 + rnd() * 250, pick(['BTS', 'Grab', 'MRT', 'วินมอเตอร์ไซค์']), pick(['acc_cash', 'acc_bank']));
       add(d(18), 'expense', 'transport', 1200, 'เติมน้ำมัน', 'acc_bank');
       for (let i = 0; i < 2 + Math.floor(rnd() * 4); i++) add(d(1 + Math.floor(rnd() * 28)), 'expense', 'shopping', 250 + rnd() * (m === 2 ? 4500 : 1800),
@@ -454,7 +471,7 @@ const Demo = (() => {
     }
     const amount = r2(Number(d.amount));
     if (!(amount > 0)) throw new Error('จำนวนเงินต้องมากกว่า 0');
-    return { date: d.date, type: d.type, category, account: d.account, toAccount, amount, note: String(d.note || '').slice(0, 500), attachment: d.attachment || '' };
+    return { date: d.date, type: d.type, category, sub: d.type === 'transfer' ? '' : String(d.sub || ''), account: d.account, toAccount, amount, note: String(d.note || '').slice(0, 500), attachment: d.attachment || '' };
   }
   const nextOcc = (after, day) => {
     let y = +after.slice(0, 4), m = +after.slice(5, 7);
@@ -816,7 +833,7 @@ function txView(t) {
       accText: `${acc(t.account).name} → ${acc(t.toAccount).name}`, amount: money(t.amount), cls: 'text-muted' };
   }
   const c = cat(t.category), inc = t.type === 'income';
-  return { c, title: t.note || c.name, catName: c.name, accText: acc(t.account).name,
+  return { c, title: t.note || t.sub || c.name, catName: t.sub ? `${c.name} (${t.sub})` : c.name, accText: acc(t.account).name,
     amount: (inc ? '+' : '−') + money(t.amount).replace('−', ''), cls: inc ? 'text-income' : '' };
 }
 function txRow(t) {
@@ -1138,13 +1155,14 @@ function renderCatDeep() {
         ${stat('ช่วงนี้', money(amt), deltaChip(amt, prevAmt, false) + ' เทียบช่วงก่อน')}
         ${stat('สัดส่วนของรายจ่าย', cur.expense ? pct(amt / cur.expense, 1) : '–', cur.income ? `${pct(amt / cur.income, 1)} ของรายรับ` : '')}
         ${stat('เฉลี่ย 12 เดือน', money(avg12), `สูงสุด ${thMonth(months12[maxI], true)}`)}
-        ${stat('จำนวนรายการ', list.length.toLocaleString('th-TH'), list.length ? `เฉลี่ย ${money(amt / list.length)} ต่อครั้ง` : '')}
+        ${stat('จำนวนรายการ', list.length.toLocaleString('th-TH'), list.length ? `เฉลี่ย ${money(Math.round(amt / list.length))} ต่อครั้ง` : '')}
         ${stat('รายการใหญ่สุด', biggest ? money(biggest.amount) : '–', biggest ? esc((biggest.note || '').slice(0, 24)) : '')}
       </div>
       <div class="grid lg:grid-cols-5 gap-5">
         <div class="lg:col-span-3"><div class="h-64"><canvas id="cCatTrend" aria-label="แนวโน้มรายจ่ายหมวด ${esc(c.name)}"></canvas></div></div>
         <div class="lg:col-span-2 space-y-4">
           <div class="insight ${adv.lv === 'up' ? 'warn' : adv.lv === 'down' ? 'good' : 'info'} !py-0 !border-0"><div><p class="font-medium">คำแนะนำ</p><p class="sub mt-0.5">${esc(recommend)}</p></div></div>
+          ${SUBCATS[c.id] ? subBreakdown(c.id, list) : ''}
           <div>
             <p class="text-sm font-medium mb-1">ใช้ไปกับอะไรบ้าง</p>
             ${topNotes.length ? topNotes.map(([k, v]) => `<div class="flex items-center gap-2 text-sm py-1.5 border-b border-rule/70 last:border-0"><span class="flex-1 truncate">${esc(k)}</span><span class="sub text-xs">${v.n} ครั้ง</span><span class="num w-24 text-right">${money(v.v)}</span></div>`).join('') : '<p class="sub">ไม่มีรายการ</p>'}
@@ -1155,6 +1173,21 @@ function renderCatDeep() {
     </div>`;
   icons();
   categoryTrendChart($('#cCatTrend'), c.id, P.endMonth);
+}
+
+/** แยกยอดตามหมวดย่อย เช่น มื้ออาหาร */
+function subBreakdown(catId, list) {
+  const total = list.reduce((s, t) => s + t.amount, 0);
+  if (!total) return '';
+  const names = SUBCATS[catId].concat(['ไม่ระบุ']);
+  const rows = names.map((n) => {
+    const items = list.filter((t) => (t.sub || 'ไม่ระบุ') === n);
+    const v = items.reduce((s, t) => s + t.amount, 0);
+    return { n, v, cnt: items.length };
+  }).filter((r) => r.cnt);
+  return `<div><p class="text-sm font-medium mb-1">แยกตามมื้อ</p>${rows.map((r) => `
+    <div class="py-1.5"><div class="flex items-center gap-2 text-sm"><span class="flex-1">${esc(r.n)}</span><span class="sub text-xs">${r.cnt} ครั้ง, เฉลี่ย ${money(Math.round(r.v / r.cnt))}</span><span class="num w-20 text-right">${money(r.v)}</span></div>
+    <div class="bar mt-1 !h-1.5"><span style="width:${(r.v / total * 100).toFixed(1)}%;background:${cat(catId).color}"></span></div></div>`).join('')}</div>`;
 }
 
 function matrixData(endMonth, n) {
@@ -1290,9 +1323,9 @@ function downloadCsv(rows, name) {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 function exportTxCsv() {
-  const rows = [['วันที่', 'ประเภท', 'หมวดหมู่', 'บัญชี', 'ไปยังบัญชี', 'จำนวนเงิน', 'หมายเหตุ', 'ไฟล์แนบ']];
+  const rows = [['วันที่', 'ประเภท', 'หมวดหมู่', 'หมวดย่อย', 'บัญชี', 'ไปยังบัญชี', 'จำนวนเงิน', 'หมายเหตุ', 'ไฟล์แนบ']];
   const typeName = { income: 'รายรับ', expense: 'รายจ่าย', transfer: 'โอน' };
-  filteredTx().slice().reverse().forEach((t) => rows.push([t.date, typeName[t.type], t.type === 'transfer' ? '' : cat(t.category).name, acc(t.account).name,
+  filteredTx().slice().reverse().forEach((t) => rows.push([t.date, typeName[t.type], t.type === 'transfer' ? '' : cat(t.category).name, t.sub || '', acc(t.account).name,
     t.type === 'transfer' ? acc(t.toAccount).name : '', t.type === 'expense' ? -t.amount : t.amount, t.note, t.attachment ? driveUrl(t.attachment) : '']));
   const P = period();
   downloadCsv(rows, `moneypro-${P.from}_${P.to}.csv`);
@@ -1661,6 +1694,7 @@ const defaultSavingAcc = (from) => ((activeAccounts().find((a) => SAVING_TYPES.i
 /** บัญชีหลักสำหรับโอนออก: บัญชีธนาคารก่อน แล้วค่อยบัญชีอื่นที่ไม่ใช่บัญชีออม */
 const mainAccount = (except) => (activeAccounts().find((x) => x.type === 'bank' && x.id !== except) ||
   activeAccounts().find((x) => !SAVING_TYPES.includes(x.type) && x.id !== except) || {}).id;
+const subOptions = (catId, selected) => ['<option value="">ไม่ระบุ</option>'].concat((SUBCATS[catId] || []).map((x) => `<option ${x === selected ? 'selected' : ''}>${esc(x)}</option>`)).join('');
 const catOptions = (type, selected) => activeCats(type).map((c) => `<option value="${c.id}" ${c.id === selected ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
 const accOptions = (selected) => activeAccounts().map((a) => `<option value="${a.id}" ${a.id === selected ? 'selected' : ''}>${esc(a.name)}</option>`).join('');
 
@@ -1707,6 +1741,7 @@ function openTxForm(t, preset) {
         <div id="tCatWrap" class="${d.type === 'transfer' ? 'hidden' : ''}"><label class="label" for="tCat">หมวดหมู่</label><select id="tCat" class="field"><option value="">เลือกหมวด</option>${catOptions(d.type, d.category)}</select></div>
         <div><label class="label" for="tAcc" id="tAccLabel">${d.type === 'transfer' ? 'จากบัญชี' : 'บัญชี'}</label><select id="tAcc" class="field">${accOptions(d.account)}</select></div>
         <div id="tToWrap" class="${d.type === 'transfer' ? '' : 'hidden'}"><label class="label" for="tTo">ไปยังบัญชี</label><select id="tTo" class="field">${accOptions(d.toAccount || defaultSavingAcc(d.account))}</select></div>
+        <div id="tSubWrap" class="${d.type !== 'transfer' && SUBCATS[d.category] ? '' : 'hidden'}"><label class="label" for="tSub">มื้อ</label><select id="tSub" class="field">${subOptions(d.category, d.sub || (isEdit ? '' : mealByTime(nowHHMM())))}</select></div>
       </div>
       <p id="tTransferHint" class="sub text-xs ${d.type === 'transfer' ? '' : 'hidden'}">การโอนไม่นับเป็นรายรับหรือรายจ่าย ถ้าโอนเข้าบัญชีออมทรัพย์หรือการลงทุน จะนับเป็นเงินออม</p>
       <div><label class="label" for="tNote">หมายเหตุหรือร้านค้า</label><input id="tNote" class="field" maxlength="500" value="${esc(d.note)}" placeholder="เช่น ข้าวกลางวัน, ค่าไฟเดือนนี้"></div>
@@ -1720,6 +1755,7 @@ function openTxForm(t, preset) {
       $$('[data-txtype]', m).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.txtype === ty)));
       const tr = ty === 'transfer';
       $('#tCatWrap', m).classList.toggle('hidden', tr);
+      $('#tSubWrap', m).classList.toggle('hidden', tr || !SUBCATS[$('#tCat', m).value]);
       $('#tToWrap', m).classList.toggle('hidden', !tr);
       $('#tTransferHint', m).classList.toggle('hidden', !tr);
       $('#tAccLabel', m).textContent = tr ? 'จากบัญชี' : 'บัญชี';
@@ -1729,6 +1765,14 @@ function openTxForm(t, preset) {
       }
     };
     $$('[data-txtype]', m).forEach((b) => b.onclick = () => setType(b.dataset.txtype));
+    const syncSub = (time) => {
+      const cid = $('#tCat', m).value, has = !!SUBCATS[cid] && st.type !== 'transfer';
+      $('#tSubWrap', m).classList.toggle('hidden', !has);
+      if (has && (time || !$('#tSub', m).value || !SUBCATS[cid].includes($('#tSub', m).value))) {
+        $('#tSub', m).innerHTML = subOptions(cid, mealByTime(time || nowHHMM()));
+      }
+    };
+    $('#tCat', m).addEventListener('change', () => syncSub());
 
     // ---- Receipt upload ----
     const show = (which) => ['rcptEmpty', 'rcptBusy', 'rcptDone'].forEach((id) => $('#' + id, m).classList.toggle('hidden', id !== which));
@@ -1768,6 +1812,7 @@ function openTxForm(t, preset) {
         if (p.amount) { $('#tAmount', m).value = p.amount; mark($('#tAmount', m)); filled.push('ยอดเงิน'); }
         if (p.date) { $('#tDate', m).value = p.date; mark($('#tDate', m)); filled.push('วันที่'); }
         if (p.category && S.catById[p.category] && S.catById[p.category].type === st.type) { $('#tCat', m).value = p.category; mark($('#tCat', m)); filled.push('หมวด'); }
+        if (SUBCATS[$('#tCat', m).value]) { syncSub(p.time || ''); if (p.time) mark($('#tSub', m)); }
         if (p.merchant && !$('#tNote', m).value) { $('#tNote', m).value = p.merchant; mark($('#tNote', m)); filled.push('ร้านค้า'); }
         $('#rcptTitle', m).textContent = filled.length ? `อ่านได้: ${filled.join(', ')}` : (ocrError ? 'แนบไฟล์แล้ว' : 'แนบรูปแล้ว ไม่พบข้อมูลที่อ่านได้');
         $('#rcptSub', m).textContent = ocrError || (filled.length ? 'ตรวจสอบช่องที่ไฮไลต์ก่อนบันทึก' : 'กรอกข้อมูลเองได้เลย');
@@ -1798,6 +1843,7 @@ function openTxForm(t, preset) {
         id: t && t.id, type: st.type, amount: parseFloat($('#tAmount', m).value), date: $('#tDate', m).value,
         category: st.type === 'transfer' ? '' : $('#tCat', m).value, account: $('#tAcc', m).value,
         toAccount: st.type === 'transfer' ? $('#tTo', m).value : '', note: $('#tNote', m).value.trim(), attachment: st.attachment,
+        sub: st.type !== 'transfer' && SUBCATS[$('#tCat', m).value] ? $('#tSub', m).value : '',
       };
       const err = !(data.amount > 0) ? 'กรอกจำนวนเงินที่มากกว่า 0' : !data.date ? 'เลือกวันที่'
         : st.type !== 'transfer' && !data.category ? 'เลือกหมวดหมู่' : !data.account ? 'เลือกบัญชี'
