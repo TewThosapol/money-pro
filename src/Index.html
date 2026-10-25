@@ -866,11 +866,18 @@ function txRow(t) {
       <button class="icon-btn inline-grid" data-del-tx="${esc(t.id)}" aria-label="ลบ"><i data-lucide="trash-2"></i></button>
     </td></tr>`;
 }
-function txItem(t) {
+/** วันที่แบบสั้นที่อ่านง่าย: วันนี้ / เมื่อวาน / ส. 24 ต.ค. (ใส่ปีถ้าไม่ใช่ปีนี้) */
+function relDate(d) {
+  if (d === S.today) return 'วันนี้';
+  if (d === addDays(S.today, -1)) return 'เมื่อวาน';
+  if (d === addDays(S.today, 1)) return 'พรุ่งนี้';
+  return thDate(d, d.slice(0, 4) !== S.today.slice(0, 4));
+}
+function txItem(t, showDate) {
   const v = txView(t);
   return `<button class="w-full flex items-center gap-3 py-3 text-left" data-edit-tx="${esc(t.id)}">
     ${catIcon(v.c)}
-    <span class="min-w-0 flex-1"><span class="block truncate">${esc(v.title)}</span><span class="sub block truncate">${esc(v.catName)}, ${esc(v.accText)}</span></span>
+    <span class="min-w-0 flex-1"><span class="block truncate">${esc(v.title)}</span><span class="sub block truncate">${esc(v.catName)}, ${esc(v.accText)}</span>${showDate === true ? `<span class="flex items-center gap-1 text-[11px] text-muted/80 mt-0.5"><i data-lucide="calendar" class="!w-3 !h-3"></i>${relDate(t.date)}</span>` : ''}</span>
     <span class="num font-medium whitespace-nowrap ${v.cls}">${v.amount}${t.attachment ? ' <i data-lucide="paperclip" class="inline !w-3 !h-3 text-muted"></i>' : ''}</span>
   </button>`;
 }
@@ -960,7 +967,7 @@ function renderOverview() {
     <div class="grid lg:grid-cols-5 gap-5">
       <div class="panel lg:col-span-3">
         <div class="panel-h"><h2>รายการล่าสุด</h2><button type="button" class="ml-auto text-sm text-accent hover:underline" data-go="transactions">ดูทั้งหมด</button></div>
-        <div class="panel-b !pt-0">${recent.length ? `<div class="divide-y divide-rule/70">${recent.map(txItem).join('')}</div>` : emptyState('inbox', 'ยังไม่มีรายการ', 'เริ่มจากบันทึกรายจ่ายหรือแนบสลิปรายการแรก', '<button class="btn btn-primary mt-4" data-action="add"><i data-lucide="plus"></i>บันทึกรายการ</button>')}</div>
+        <div class="panel-b !pt-0">${recent.length ? `<div class="divide-y divide-rule/70">${recent.map((t) => txItem(t, true)).join('')}</div>` : emptyState('inbox', 'ยังไม่มีรายการ', 'เริ่มจากบันทึกรายจ่ายหรือแนบสลิปรายการแรก', '<button class="btn btn-primary mt-4" data-action="add"><i data-lucide="plus"></i>บันทึกรายการ</button>')}</div>
       </div>
       <div class="panel lg:col-span-2">
         <div class="panel-h"><h2>งบประมาณ</h2><button type="button" class="ml-auto text-sm text-accent hover:underline" data-go="budgets">จัดการ</button></div>
