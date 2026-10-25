@@ -97,8 +97,13 @@
   .nav-link[aria-current="page"] { color: rgb(var(--ink)); background: rgb(var(--rule) / .7); }
 
   :where(.tab-link) { display:flex; }
-  .tab-link { flex-direction:column; align-items:center; gap:2px; font-size:.7rem; color: rgb(var(--muted)); padding:.35rem 0; }
-  .tab-link[aria-current="page"] { color: rgb(var(--ink)); font-weight:600; }
+  .tab-link { position:relative; flex-direction:column; align-items:center; justify-content:center; gap:4px; min-height:62px; font-size:.82rem; font-weight:500; color: rgb(var(--muted)); }
+  .tab-link [data-lucide], .tab-link svg { width:24px; height:24px; stroke-width:2; }
+  .tab-link[aria-current="page"] { color: rgb(var(--accent)); font-weight:600; }
+  .tab-link[aria-current="page"]::before { content:''; position:absolute; top:0; left:28%; right:28%; height:3px; border-radius:0 0 3px 3px; background: rgb(var(--accent)); }
+  .tab-add { display:grid; place-items:center; min-height:62px; }
+  .tab-add > span { width:52px; height:52px; border-radius:16px; display:grid; place-items:center; background: rgb(var(--accent)); color:#fff; box-shadow: 0 6px 16px -6px rgb(var(--accent) / .7); }
+  .tab-add [data-lucide], .tab-add svg { width:26px; height:26px; stroke-width:2.4; }
 
   table.ledger { width:100%; border-collapse: collapse; }
   table.ledger th { text-align:left; font-weight:500; font-size:.8rem; color: rgb(var(--muted)); padding:.55rem .75rem; border-bottom:1px solid rgb(var(--rule)); white-space:nowrap; }
@@ -148,7 +153,22 @@
   .modal-back { position:fixed; inset:0; background: rgb(8 14 26 / .5); z-index:50; }
   .modal { position:fixed; z-index:51; background: rgb(var(--surface)); border:1px solid rgb(var(--rule)); }
   @media (min-width: 640px) { .modal { left:50%; top:50%; transform: translate(-50%,-50%); width: min(560px, calc(100vw - 2rem)); max-height: calc(100vh - 3rem); border-radius: 16px; overflow:auto; } }
-  @media (max-width: 639px) { .modal { left:0; right:0; bottom:0; max-height: 92vh; border-radius: 18px 18px 0 0; overflow:auto; padding-bottom: env(safe-area-inset-bottom); animation: sheet .25s cubic-bezier(.2,.8,.2,1); } }
+  @media (max-width: 639px) {
+    .modal-c .mh { padding: .85rem 1rem .6rem; }
+    .modal-c .mh h3 { font-size: 1.05rem; }
+    .modal-c .mb { padding: .75rem 1rem; }
+    .modal-c .mb > * + * { margin-top: .7rem !important; }
+    .modal-c .mf { padding: .6rem 1rem; }
+    .modal-c .mf .btn { padding: .6rem 1.1rem; }
+    .modal-c .label { font-size: .8rem; margin-bottom: .2rem; }
+    .modal-c .field { padding: .5rem .7rem; font-size: 16px; }
+    .modal-c .seg button { padding: .3rem .5rem; }
+    .modal-c .drop { padding: .5rem .65rem; }
+    .modal-c .drop .cat-ico { width: 1.9rem; height: 1.9rem; }
+  }
+  input[type="date"].field { min-width:0; -webkit-appearance:none; appearance:none; text-align:left; min-height: 2.6rem; }
+  input[type="date"].field::-webkit-date-and-time-value { text-align:left; }
+  @media (max-width: 639px) { .modal { left:0; right:0; bottom:0; max-height: 88vh; border-radius: 18px 18px 0 0; overflow:auto; padding-bottom: env(safe-area-inset-bottom); animation: sheet .25s cubic-bezier(.2,.8,.2,1); } }
   @keyframes sheet { from { transform: translateY(40px); opacity:.4 } to { transform:none; opacity:1 } }
 
   .drop { border:1.5px dashed rgb(var(--rule)); border-radius:12px; transition: border-color .15s, background-color .15s; }
@@ -210,7 +230,7 @@
       </div>
     </header>
 
-    <main class="max-w-[1180px] mx-auto px-4 md:px-8 py-6 pb-28 md:pb-12">
+    <main class="max-w-[1180px] mx-auto px-4 md:px-8 py-6 pb-32 md:pb-12">
       <div id="loading" class="py-24 text-center text-muted">
         <i data-lucide="loader-circle" class="spin inline-block !w-7 !h-7"></i>
         <p class="mt-3 text-sm">กำลังโหลดข้อมูล</p>
@@ -227,18 +247,16 @@
 </div>
 
 <!-- Tab bar (mobile) -->
-<nav class="tabbar md:hidden fixed bottom-0 inset-x-0 z-40 bg-surface border-t border-rule grid grid-cols-5 items-end" style="padding-bottom: env(safe-area-inset-bottom)">
+<nav class="tabbar md:hidden fixed bottom-0 inset-x-0 z-40 bg-surface/95 backdrop-blur border-t border-rule grid grid-cols-5 items-stretch shadow-[0_-4px_16px_-8px_rgb(0_0_0/0.25)]" style="padding-bottom: env(safe-area-inset-bottom)">
   <button type="button" class="tab-link" data-tab="overview" data-go="overview"><i data-lucide="layout-dashboard"></i>ภาพรวม</button>
   <button type="button" class="tab-link" data-tab="analysis" data-go="analysis"><i data-lucide="chart-pie"></i>วิเคราะห์</button>
-  <button class="flex justify-center -mt-5" data-action="add" aria-label="บันทึกรายการ">
-    <span class="w-14 h-14 rounded-2xl bg-ink text-surface grid place-items-center shadow-lg"><i data-lucide="plus" class="!w-6 !h-6"></i></span>
-  </button>
+  <button type="button" class="tab-add" data-action="add" aria-label="บันทึกรายการ"><span><i data-lucide="plus"></i></span></button>
   <button type="button" class="tab-link" data-tab="transactions" data-go="transactions"><i data-lucide="list"></i>รายการ</button>
   <button class="tab-link" data-action="more" data-tab="more"><i data-lucide="menu"></i>เพิ่มเติม</button>
 </nav>
 
 <div id="modalRoot"></div>
-<div id="toast" class="hidden fixed z-[70] left-1/2 -translate-x-1/2 bottom-24 md:bottom-8 bg-ink text-surface rounded-xl px-4 py-3 text-sm shadow-lg max-w-[92vw] flex items-center gap-2"></div>
+<div id="toast" class="hidden fixed z-[70] left-1/2 -translate-x-1/2 bottom-28 md:bottom-8 bg-ink text-surface rounded-xl px-4 py-3 text-sm shadow-lg max-w-[92vw] flex items-center gap-2"></div>
 
 <script>
 'use strict';
@@ -1561,7 +1579,7 @@ function openGoalForm(g) {
   const accs = S.accounts.filter((a) => !a.archived);
   openModal(`
     ${modalHead(g ? 'แก้ไขเป้าหมาย' : 'เพิ่มเป้าหมายการออม')}
-    <div class="px-5 py-4 space-y-4">
+    <div class="mb px-5 py-4 space-y-4">
       <div><label class="label" for="gName">ชื่อเป้าหมาย</label><input id="gName" class="field" maxlength="60" value="${esc(d.name)}" placeholder="เช่น เงินสำรองฉุกเฉิน, เที่ยวญี่ปุ่น" autofocus></div>
       <div class="grid grid-cols-2 gap-3">
         <div><label class="label" for="gTarget">จำนวนเป้าหมาย (บาท)</label><input id="gTarget" type="number" min="1" step="100" class="field num" value="${d.targetAmount}"></div>
@@ -1663,7 +1681,7 @@ function renderSettings() {
 let modalCleanup = null;
 function openModal(html, onMount) {
   closeModal();
-  $('#modalRoot').innerHTML = `<div class="modal-back" data-close></div><div class="modal" role="dialog" aria-modal="true">${html}</div>`;
+  $('#modalRoot').innerHTML = `<div class="modal-back" data-close></div><div class="modal modal-c" role="dialog" aria-modal="true">${html}</div>`;
   document.body.style.overflow = 'hidden';
   icons();
   if (onMount) modalCleanup = onMount($('#modalRoot .modal')) || null;
@@ -1676,8 +1694,8 @@ function closeModal() {
   $('#modalRoot').innerHTML = '';
   document.body.style.overflow = '';
 }
-const modalHead = (title, sub) => `<div class="flex items-start gap-3 px-5 pt-5 pb-3 border-b border-rule"><div class="flex-1"><h3 class="font-semibold text-lg">${title}</h3>${sub ? `<p class="sub">${sub}</p>` : ''}</div><button class="icon-btn" data-close aria-label="ปิด"><i data-lucide="x"></i></button></div>`;
-const modalFoot = (left, right) => `<div class="flex items-center gap-2 px-5 py-4 border-t border-rule sticky bottom-0 bg-surface">${left || ''}<div class="ml-auto flex gap-2">${right}</div></div>`;
+const modalHead = (title, sub) => `<div class="mh flex items-start gap-3 px-5 pt-5 pb-3 border-b border-rule"><div class="flex-1"><h3 class="font-semibold text-lg">${title}</h3>${sub ? `<p class="sub">${sub}</p>` : ''}</div><button class="icon-btn" data-close aria-label="ปิด"><i data-lucide="x"></i></button></div>`;
+const modalFoot = (left, right) => `<div class="mf flex items-center gap-2 px-5 py-4 border-t border-rule sticky bottom-0 bg-surface">${left || ''}<div class="ml-auto flex gap-2">${right}</div></div>`;
 
 function confirmDialog(title, text, okLabel = 'ลบ') {
   return new Promise((resolve) => {
@@ -1708,12 +1726,12 @@ function openTxForm(t, preset) {
 
   openModal(`
     ${modalHead(isEdit ? 'แก้ไขรายการ' : 'บันทึกรายการ')}
-    <form id="txForm" class="px-5 py-4 space-y-4" novalidate>
+    <form id="txForm" class="mb px-5 py-4 space-y-4" novalidate>
       <div id="dropZone" class="drop p-3">
         <input type="file" id="rcptFile" accept="${RCPT_ACCEPT}" class="sr-only">
         <div id="rcptEmpty" class="${st.attachment ? 'hidden' : ''} flex items-center gap-3">
           <span class="cat-ico bg-accent/10 text-accent"><i data-lucide="scan-text"></i></span>
-          <div class="flex-1 min-w-0"><p class="font-medium text-sm">แนบสลิปหรือใบเสร็จ</p><p class="sub text-xs">ระบบจะอ่านยอดเงิน วันที่ และร้านค้าให้อัตโนมัติ</p></div>
+          <div class="flex-1 min-w-0"><p class="font-medium text-sm">แนบสลิปหรือใบเสร็จ</p><p class="sub text-xs hidden sm:block">ระบบจะอ่านยอดเงิน วันที่ และร้านค้าให้อัตโนมัติ</p><p class="sub text-xs sm:hidden">อ่านยอดเงินให้อัตโนมัติ</p></div>
           <label for="rcptFile" class="btn btn-ghost !py-1.5 cursor-pointer"><i data-lucide="upload"></i>เลือกรูป</label>
         </div>
         <div id="rcptBusy" class="hidden flex items-center gap-3 text-sm"><i data-lucide="loader-circle" class="spin"></i><span id="rcptBusyText">กำลังอัปโหลด</span></div>
@@ -1956,7 +1974,7 @@ function openAccForm(a, preset) {
   let color = d.color;
   openModal(`
     ${modalHead(a ? 'แก้ไขบัญชี' : 'เพิ่มบัญชี')}
-    <div class="px-5 py-4 space-y-4">
+    <div class="mb px-5 py-4 space-y-4">
       <div><label class="label" for="aName">ชื่อบัญชี</label><input id="aName" class="field" maxlength="60" value="${esc(d.name)}" placeholder="เช่น กสิกรไทย, บัตร KTC" autofocus></div>
       <div class="grid grid-cols-2 gap-3">
         <div><label class="label" for="aType">ประเภท</label><select id="aType" class="field">${Object.entries(ACCOUNT_TYPES).map(([k, v]) => `<option value="${k}" ${k === d.type ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
@@ -1989,7 +2007,7 @@ function openCatForm(c) {
   let icon = d.icon, color = d.color;
   openModal(`
     ${modalHead(c ? 'แก้ไขหมวดหมู่' : 'เพิ่มหมวดหมู่')}
-    <div class="px-5 py-4 space-y-4">
+    <div class="mb px-5 py-4 space-y-4">
       <div><label class="label" for="cName">ชื่อหมวด</label><input id="cName" class="field" maxlength="60" value="${esc(d.name)}" autofocus></div>
       <div class="grid grid-cols-2 gap-3">
         <div><label class="label" for="cType">ประเภท</label><select id="cType" class="field"><option value="expense" ${d.type === 'expense' ? 'selected' : ''}>รายจ่าย</option><option value="income" ${d.type === 'income' ? 'selected' : ''}>รายรับ</option></select></div>
@@ -2030,7 +2048,7 @@ function openRecForm(r, preset) {
   let type = d.type;
   openModal(`
     ${modalHead(r ? 'แก้ไขรายการประจำ' : 'เพิ่มรายการประจำ', 'ระบบจะบันทึกให้อัตโนมัติทุกเดือนตามวันที่กำหนด')}
-    <div class="px-5 py-4 space-y-4">
+    <div class="mb px-5 py-4 space-y-4">
       <div class="seg w-full grid grid-cols-3" role="group" aria-label="ประเภท">
         <button type="button" data-rtype="expense" aria-pressed="${type === 'expense'}">รายจ่าย</button>
         <button type="button" data-rtype="income" aria-pressed="${type === 'income'}">รายรับ</button>
