@@ -867,7 +867,9 @@ function txRow(t) {
     </td></tr>`;
 }
 /** วันที่เต็มแบบย่อ เช่น อา. 25 ต.ค. 2569 */
-const fullDate = (d) => parseYmd(d).toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+const TH_DOW = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+const TH_MON = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+const fullDate = (d) => { const x = parseYmd(d); return `${TH_DOW[x.getDay()]} ${x.getDate()} ${TH_MON[x.getMonth()]} ${x.getFullYear() + 543}`; };
 function txItem(t, showDate) {
   const v = txView(t);
   return `<button class="w-full flex items-center gap-3 py-3 text-left" data-edit-tx="${esc(t.id)}">
