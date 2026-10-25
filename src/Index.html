@@ -682,6 +682,8 @@ function summarize(list) {
     if (t.type === 'expense') s[cat(t.category).group === 'need' ? 'need' : 'want'] += t.amount;
   });
   s.net = s.income - s.expense;
+  // เงินคงเหลือหลังหักเงินที่โอนเข้าบัญชีออม (ใช้แสดงผล ส่วนการวิเคราะห์ใช้ s.net)
+  s.left = s.net - s.toSavings;
   s.rate = s.income > 0 ? s.net / s.income : null;
   return s;
 }
@@ -900,10 +902,11 @@ function renderOverview() {
   const recent = inRange('0000-01-01', S.today).sort((a, b) => (b.date + b.createdAt).localeCompare(a.date + a.createdAt)).slice(0, 6);
   const topCats = activeCats('expense').map((c) => [c, cur.byCat[c.id] || 0]).filter((x) => x[1] > 0).sort((a, b) => b[1] - a[1]);
 
-  const kpi = (label, val, chip, extra = '') => `
+  const kpi = (label, val, chip, extra = '', note = '') => `
     <div class="px-5 py-4 min-w-0">
       <p class="sub">${label}</p>
       <p class="num text-2xl md:text-[1.7rem] font-semibold tracking-tight mt-1 truncate ${extra}">${val}</p>
+      ${note ? `<p class="sub text-xs mt-0.5 truncate">${note}</p>` : ''}
       <div class="mt-1.5 flex items-center gap-2 text-xs text-muted">${chip}<span class="hidden sm:inline">เทียบช่วงก่อนหน้า</span></div>
     </div>`;
 
@@ -914,8 +917,8 @@ function renderOverview() {
     <div class="panel overflow-hidden grid grid-cols-2 lg:grid-cols-4 gap-px !bg-rule [&>*]:bg-surface">
       ${kpi('รายรับ', money(cur.income), deltaChip(cur.income, prev.income, true))}
       ${kpi('รายจ่าย', money(cur.expense), deltaChip(cur.expense, prev.expense, false))}
-      ${kpi('คงเหลือสุทธิ', money(cur.net), deltaChip(cur.net, prev.net, true), cur.net < 0 ? 'text-expense' : '')}
-      ${kpi('อัตราการออม', pct(cur.rate, 1), prev.rate == null || cur.rate == null ? '<span class="chip chip-flat">–</span>' : deltaChip(cur.rate, prev.rate, true), cur.rate != null && cur.rate < 0 ? 'text-expense' : '')}
+      ${kpi('คงเหลือสุทธิ', money(cur.left), deltaChip(cur.left, prev.left, true), cur.left < 0 ? 'text-expense' : '', cur.toSavings ? `หักออมแล้ว ${money(cur.toSavings)}` : '')}
+      ${kpi('อัตราการออม', pct(cur.rate, 1), prev.rate == null || cur.rate == null ? '<span class="chip chip-flat">–</span>' : deltaChip(cur.rate, prev.rate, true), cur.rate != null && cur.rate < 0 ? 'text-expense' : '', cur.toSavings && cur.income > 0 ? `โอนเข้าบัญชีออม ${pct(cur.toSavings / cur.income)}` : '')}
     </div>
 
     ${allocationPanel(cur, P)}
@@ -991,6 +994,7 @@ function allocationPanel(cur, P) {
   const scale = Math.max(cur.income, cur.expense);
   const w = (v) => (Math.max(0, v) / scale * 100).toFixed(2) + '%';
   const saved = Math.max(0, cur.net), over = Math.max(0, -cur.net);
+  const moved = Math.min(saved, Math.max(0, cur.toSavings)), rest = saved - moved;
   const lbl = (v) => (v / scale > 0.09 ? pct(v / cur.income) : '');
   const markPos = (r) => (cur.income * r / scale * 100).toFixed(2) + '%';
   const row = (color, name, v, target, note) => `
@@ -1006,7 +1010,8 @@ function allocationPanel(cur, P) {
       <div class="alloc" role="img" aria-label="จำเป็น ${pct(cur.need / cur.income)} ตามใจ ${pct(cur.want / cur.income)} เหลือเก็บ ${pct(saved / cur.income)}">
         ${cur.need > 0 ? `<div style="width:${w(cur.need)};background:rgb(var(--need))">${lbl(cur.need)}</div>` : ''}
         ${cur.want > 0 ? `<div style="width:${w(cur.want)};background:rgb(var(--want))">${lbl(cur.want)}</div>` : ''}
-        ${saved > 0 ? `<div style="width:${w(saved)};background:rgb(var(--income))">${lbl(saved)}</div>` : ''}
+        ${moved > 0 ? `<div style="width:${w(moved)};background:rgb(var(--income))">${lbl(moved)}</div>` : ''}
+        ${rest > 0 ? `<div style="width:${w(rest)};background:rgb(var(--income) / .45)">${lbl(rest)}</div>` : ''}
       </div>
       <div class="alloc-marks" aria-hidden="true">
         <span style="left:${markPos(0.5)}">50%</span><span style="left:${markPos(0.8)}">80%</span>${over > 0 ? `<span style="left:${markPos(1)}">รายรับ</span>` : ''}
@@ -1015,7 +1020,7 @@ function allocationPanel(cur, P) {
         ${row('rgb(var(--need))', 'จำเป็น', cur.need, '≤ 50%', 'ที่พัก อาหาร เดินทาง บิล สุขภาพ')}
         ${row('rgb(var(--want))', 'ตามใจ', cur.want, '≤ 30%', 'ช้อปปิ้ง บันเทิง และอื่นๆ')}
         ${over > 0 ? row('rgb(var(--expense))', 'ใช้เกินรายรับ', over, '0%', 'ส่วนที่ใช้เงินเก็บหรือเครดิต')
-          : row('rgb(var(--income))', 'เหลือเก็บ', saved, '≥ 20%', 'เงินออมและลงทุน')}
+          : row('rgb(var(--income))', 'เหลือเก็บ', saved, '≥ 20%', moved > 0 ? `ออมแล้ว ${money(moved)}, เหลือใช้ ${money(rest)}` : 'เงินออมและลงทุน')}
       </div>
     </div>
   </div>`;
